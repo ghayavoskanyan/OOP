@@ -31,19 +31,21 @@ UnaryOpNode::UnaryOpNode(char o, std::unique_ptr<ASTNode> node)
     : op(o), operand(std::move(node)) { type = NodeType::UnaryOpNode; }
 
 int UnaryOpNode::compile(std::vector<Instruction>& prog) const {
+    int valIdx = operand->compile(prog);
+
     if (op == '-' || op == 'u') {
         int zeroIdx = (int)prog.size();
         prog.push_back({OpCode::LOAD_CONST, 0.0, -1, -1, zeroIdx});
-        
-        int valIdx = operand->compile(prog);
-        
+
         int resIdx = (int)prog.size();
         prog.push_back({OpCode::SUB, 0.0, zeroIdx, valIdx, resIdx});
-        
+
         return resIdx;
     }
-    return operand->compile(prog);
+
+    return valIdx;
 }
+
 
 AssignmentNode::AssignmentNode(const std::string& name, std::unique_ptr<ASTNode> expr) 
     : varName(name), expression(std::move(expr)) { type = NodeType::AssignmentNode; }

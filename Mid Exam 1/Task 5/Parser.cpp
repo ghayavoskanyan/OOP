@@ -60,7 +60,11 @@ void Parser::processToken() {
             break;
         case TokenType::Operator: {
             char op = currentToken.value[0];
-            bool isUnary = (nodeStack.empty() || currentState == ParserState::Operator || currentState == ParserState::Start) && (op == '+' || op == '-');
+            bool isUnary = (
+                currentState == ParserState::Start ||
+                currentState == ParserState::Operator ||
+                currentState == ParserState::Assignment
+            );
             if (isUnary) {
                 operatorStack.push(op == '-' ? 'u' : 'p');
             } else {
