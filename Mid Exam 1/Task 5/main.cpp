@@ -11,7 +11,10 @@ int main() {
     std::cout << "Expression Calculator!\n";
     std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
     std::cout << "Supported operations: +, -, *, /, parentheses, variables\n";
-    std::cout << "An example: x = 5 + 3\n";
+    std::cout << "Examples:\n";
+    std::cout << "  w = -5 + 3\n";
+    std::cout << "  n = w + 10\n";
+    std::cout << "  x = (5 + 3) * 2\n";
     std::cout << "Type 'quit' to exit\n\n";
     
     while (true) {
@@ -31,9 +34,11 @@ int main() {
             double result = manager.evaluate();
             std::cout << "Result: " << result << "\n";
             
-            if (input.find('=') != std::string::npos) {
-                size_t eqPos = input.find('=');
+            // Check if it was an assignment and show variable value
+            size_t eqPos = input.find('=');
+            if (eqPos != std::string::npos) {
                 std::string varName = input.substr(0, eqPos);
+                // Trim whitespace
                 size_t first = varName.find_first_not_of(" \t");
                 if (first != std::string::npos) {
                     varName = varName.substr(first);

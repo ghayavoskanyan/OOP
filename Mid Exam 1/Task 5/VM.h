@@ -1,9 +1,17 @@
 #pragma once
 #include <vector>
-#include <iostream>
 #include <stdexcept>
+#include "SymbolTable.h"
 
-enum class OpCode { ADD, SUB, MUL, DIV, LOAD_CONST, HALT };
+enum class OpCode {
+    LOAD_CONST,
+    LOAD_VAR,
+    STORE_VAR,
+    ADD,
+    SUB,
+    MUL,
+    DIV
+};
 
 struct Instruction {
     OpCode op;
@@ -14,6 +22,10 @@ struct Instruction {
 };
 
 class VirtualMachine {
+    SymbolTable& symbolTable;
+
 public:
+    VirtualMachine(SymbolTable& sym) : symbolTable(sym) {}
+
     double execute(const std::vector<Instruction>& program, std::vector<double>& rv);
 };

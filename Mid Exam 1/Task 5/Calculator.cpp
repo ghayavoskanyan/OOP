@@ -10,10 +10,10 @@ double Calculator::calculate(std::unique_ptr<ASTNode> root) {
     if (!root) return 0.0;
 
     std::vector<Instruction> program;
-    root->compile(program);
+    int resultIdx = root->compile(program);
 
     std::vector<double> rv(program.size() + 10, 0.0);
-    VirtualMachine vm;
+    VirtualMachine vm(symbolTable);
     
     std::cout << "\n--- VM Iterative Execution ---" << "\n";
     double result = vm.execute(program, rv);

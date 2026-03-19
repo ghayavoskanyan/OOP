@@ -1,4 +1,3 @@
-/* Calculator.h */
 #pragma once
 #include "ASTNode.h"
 #include "SymbolTable.h"

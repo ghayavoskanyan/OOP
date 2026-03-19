@@ -1,7 +1,7 @@
 #include "Lexer.h"
 #include <cctype>
 
-Lexer::Lexer(std::istream& is) : input(is), currentState(LexerState::Start), line(1), column(0), isEscape(false) {
+Lexer::Lexer(std::istream& is) : input(is), currentState(LexerState::Start), line(1), column(0) {
     initializeTransitionMatrix();
 }
 
@@ -15,24 +15,23 @@ void Lexer::initializeTransitionMatrix() {
     transitionMatrix[(int)LexerState::Start][(int)CharType::Digit] = LexerState::InNumber;
     transitionMatrix[(int)LexerState::Start][(int)CharType::Letter] = LexerState::InName;
     transitionMatrix[(int)LexerState::Start][(int)CharType::Operator_] = LexerState::InOperator;
-    transitionMatrix[(int)LexerState::Start][(int)CharType::Quote] = LexerState::InString;
     
     transitionMatrix[(int)LexerState::InNumber][(int)CharType::Digit] = LexerState::InNumber;
+    transitionMatrix[(int)LexerState::InNumber][(int)CharType::Operator_] = LexerState::InOperator;
     
     transitionMatrix[(int)LexerState::InName][(int)CharType::Letter] = LexerState::InName;
     transitionMatrix[(int)LexerState::InName][(int)CharType::Digit] = LexerState::InName;
+    transitionMatrix[(int)LexerState::InName][(int)CharType::Operator_] = LexerState::InOperator;
 }
 
 Lexer::CharType Lexer::getCharType(char c) {
     if (isdigit(c)) return CharType::Digit;
     if (isalpha(c)) return CharType::Letter;
     if (isspace(c)) {
-        if (c == '\n' || c == '\r') return CharType::Newline_;
         return CharType::Whitespace;
     }
     if (c == '+' || c == '-' || c == '*' || c == '/' || c == '=') return CharType::Operator_;
     if (c == '(' || c == ')') return CharType::Paren;
-    if (c == '"') return CharType::Quote;
     return CharType::Other;
 }
 
@@ -43,38 +42,38 @@ Token Lexer::getNextToken() {
 
     while (input.get(c)) {
         column++;
-        if (c == '\n') { line++; column = 0; }
-
+        
         CharType type = getCharType(c);
 
-        if (currentState == LexerState::Start && (type == CharType::Whitespace || type == CharType::Newline_)) {
+        // Skip whitespace
+        if (currentState == LexerState::Start && type == CharType::Whitespace) {
             continue;
         }
 
-        if ((type == CharType::Paren || type == CharType::Operator_) && !currentToken.empty()) {
-            input.unget(); column--;
-            break;
-        }
-
-        if (type == CharType::Whitespace || type == CharType::Newline_) {
-            break; 
-        }
-
+        // Handle parentheses as single tokens
         if (type == CharType::Paren) {
+            if (!currentToken.empty()) {
+                input.unget();
+                column--;
+                break;
+            }
             currentToken = c;
             return Token(c == '(' ? TokenType::OpenParen : TokenType::CloseParen, currentToken, line, column);
         }
 
         LexerState next = transitionMatrix[(int)currentState][(int)type];
         
-        if (currentState != LexerState::Start && next != currentState) {
-            input.unget(); column--;
+        // If we can't transition, stop building current token
+        if (currentState != LexerState::Start && next == LexerState::Start) {
+            input.unget();
+            column--;
             break;
         }
 
         currentState = next;
         currentToken += c;
 
+        // Operators are single characters
         if (currentState == LexerState::InOperator) {
             break;
         }

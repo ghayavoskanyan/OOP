@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include "VM.h"
+#include "SymbolTable.h"
 
 enum class NodeType { NumberNode, VariableNode, BinaryOpNode, UnaryOpNode, AssignmentNode };
 
@@ -14,6 +15,7 @@ public:
     virtual int compile(std::vector<Instruction>& prog) const = 0;
 };
 
+// --- Number Node ---
 class NumberNode : public ASTNode {
     double value;
 public:
@@ -21,13 +23,17 @@ public:
     int compile(std::vector<Instruction>& prog) const override;
 };
 
+// --- Variable Node ---
 class VariableNode : public ASTNode {
 public:
     std::string name;
-    VariableNode(const std::string& n);
+    SymbolTable& symbolTable;
+
+    VariableNode(const std::string& n, SymbolTable& sym);
     int compile(std::vector<Instruction>& prog) const override;
 };
 
+// --- Binary Operation Node ---
 class BinaryOpNode : public ASTNode {
     char op;
     std::unique_ptr<ASTNode> left, right;
@@ -36,6 +42,7 @@ public:
     int compile(std::vector<Instruction>& prog) const override;
 };
 
+// --- Unary Operation Node ---
 class UnaryOpNode : public ASTNode {
     char op;
     std::unique_ptr<ASTNode> operand;
@@ -44,10 +51,12 @@ public:
     int compile(std::vector<Instruction>& prog) const override;
 };
 
+// --- Assignment Node ---
 class AssignmentNode : public ASTNode {
     std::string varName;
     std::unique_ptr<ASTNode> expression;
+    SymbolTable& symbolTable;
 public:
-    AssignmentNode(const std::string& name, std::unique_ptr<ASTNode> expr);
+    AssignmentNode(const std::string& name, std::unique_ptr<ASTNode> expr, SymbolTable& sym);
     int compile(std::vector<Instruction>& prog) const override;
 };

@@ -5,22 +5,12 @@
 
 class SymbolTable {
 private:
-    struct SymbolInfo {
-        size_t stringIndex; 
-        double value;
-    };
-
-    static std::unordered_map<std::string, size_t> nameToId; 
-    static std::vector<std::string> stringPool;
-    static std::vector<SymbolInfo> symbols; 
-
-    std::string trim(const std::string& name) const;
+    std::unordered_map<std::string, size_t> nameToIndex;
+    std::vector<double> values;
 
 public:
-    size_t addSymbol(const std::string& name, double value = 0.0);
-    bool setValue(const std::string& name, double value);
-    bool getValue(const std::string& name, double& value) const;
-    bool exists(const std::string& name) const;
-    size_t getSymbolCount() const;
-    void clear();
+    bool getValue(const std::string& name, double& value);
+    size_t getIndex(const std::string& name);
+    double getValueByIndex(size_t idx) const;
+    void setValueByIndex(size_t idx, double val);
 };

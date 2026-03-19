@@ -7,7 +7,6 @@ enum class LexerState {
     Start,
     InNumber,
     InName,
-    InString,
     InOperator
 };
 
@@ -18,10 +17,9 @@ private:
     std::string currentToken;
     int line;
     int column;
-    bool isEscape;
    
-    static const int STATE_COUNT = 5;
-    static const int CHAR_TYPE_COUNT = 8; 
+    static const int STATE_COUNT = 4;
+    static const int CHAR_TYPE_COUNT = 7; 
    
     enum class CharType {
         Digit,
@@ -29,8 +27,6 @@ private:
         Whitespace,
         Operator_,
         Paren,
-        Quote,
-        Newline_,
         Other
     };
    

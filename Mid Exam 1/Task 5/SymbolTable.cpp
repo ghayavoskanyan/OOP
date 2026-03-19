@@ -1,63 +1,32 @@
 #include "SymbolTable.h"
-#include <algorithm>
 
-std::unordered_map<std::string, size_t> SymbolTable::nameToId;
-std::vector<std::string> SymbolTable::stringPool;
-std::vector<SymbolTable::SymbolInfo> SymbolTable::symbols;
-
-std::string SymbolTable::trim(const std::string& name) const {
-    std::string s = name;
-    size_t first = s.find_first_not_of(" \t\r\n");
-    if (first == std::string::npos) return "";
-    size_t last = s.find_last_not_of(" \t\r\n");
-    return s.substr(first, (last - first + 1));
-}
-
-size_t SymbolTable::addSymbol(const std::string& name, double value) {
-    std::string cleanName = trim(name);
-    auto it = nameToId.find(cleanName);
-    if (it != nameToId.end()) {
-        symbols[it->second].value = value;
-        return it->second;
+size_t SymbolTable::getIndex(const std::string& name) {
+    auto it = nameToIndex.find(name);
+    if (it == nameToIndex.end()) {
+        size_t idx = values.size();
+        nameToIndex[name] = idx;
+        values.push_back(0.0);
+        return idx;
     }
-    size_t newStrIdx = stringPool.size();
-    stringPool.push_back(cleanName);
-    size_t newSymIdx = symbols.size();
-    symbols.push_back({newStrIdx, value});
-    nameToId[cleanName] = newSymIdx;
-    return newSymIdx;
+    return it->second;
 }
 
-bool SymbolTable::setValue(const std::string& name, double value) {
-    std::string cleanName = trim(name);
-    auto it = nameToId.find(cleanName);
-    if (it != nameToId.end()) {
-        symbols[it->second].value = value;
-        return true;
+bool SymbolTable::getValue(const std::string& name, double& value) {
+    auto it = nameToIndex.find(name);
+    if (it == nameToIndex.end()) return false;
+    value = values[it->second];
+    return true;
+}
+
+double SymbolTable::getValueByIndex(size_t idx) const {
+    if (idx < values.size()) {
+        return values[idx];
     }
-    return false;
+    return 0.0;
 }
 
-bool SymbolTable::getValue(const std::string& name, double& value) const {
-    std::string cleanName = trim(name);
-    auto it = nameToId.find(cleanName);
-    if (it != nameToId.end()) {
-        value = symbols[it->second].value;
-        return true;
+void SymbolTable::setValueByIndex(size_t idx, double val) {
+    if (idx < values.size()) {
+        values[idx] = val;
     }
-    return false;
-}
-
-bool SymbolTable::exists(const std::string& name) const {
-    return nameToId.find(trim(name)) != nameToId.end();
-}
-
-size_t SymbolTable::getSymbolCount() const { 
-    return symbols.size();
-}
-
-void SymbolTable::clear() {
-    nameToId.clear();
-    symbols.clear();
-    stringPool.clear();
 }

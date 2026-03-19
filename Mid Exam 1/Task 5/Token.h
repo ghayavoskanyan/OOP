@@ -9,8 +9,7 @@ enum class TokenType {
     OpenParen,
     CloseParen,
     Assignment,
-    Unknown,
-    Error
+    Unknown
 };
 
 struct Token {
