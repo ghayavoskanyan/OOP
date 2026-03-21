@@ -4,7 +4,7 @@
 #include "SymbolTable.h"
 
 enum class OpCode {
-    MOV,
+    MOV, //Load, Store քցեցինք մի տեղ 
     ADD,
     SUB,
     MUL,
@@ -12,13 +12,18 @@ enum class OpCode {
 };
 
 enum class OperandType {
-    REG,
-    VAR,
-    CONST
+    REG, //օպերանդը rv վեկտորի ինդեքս է
+    VAR, //օպերանդը values վեկտորի ինդեքս է՝ փոփոխական
+    CONST //օպերանդը ուղղակի թիվ է
 };
 
 struct Instruction {
     OpCode op;
+
+    /*Union-ը թույլ է տալիս նույն հիշողության տարածքում պահել տարբեր տեսակի տվյալներ՝ կախված նրանից, թե ինչ հրահանգ է։
+    Եթե op == MOV, ապա օգտագործում ենք mov struct-ը, որը պարունակում է աղբյուրի և նպատակակետի տիպերն ու ինդեքսները,
+    եթե op == ADD/SUB/MUL/DIV, ապա օգտագործում ենք arith struct-ը, որը պարունակում է երկու օպերանդների և արդյունքի ինդեքսները։
+    Սա հիշողության օպտիմալացում է -> չենք պահում ավելորդ դաշտեր։*/
     union {
         struct {
             OperandType srcType;
