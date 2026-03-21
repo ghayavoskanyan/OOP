@@ -1,12 +1,15 @@
+/*շատ նման է CPU աշխատանքին*/
 #include "VM.h"
 #include <iostream>
 #include <algorithm>
 
+/*VM-ն ունի rv (Result Vector), որը նման է պրոցեսորի ռեգիստրներին։ Այս կոդը նախապես հաշվում է, 
+թե ամենաշատը քանի տեղ է մեզ պետք գալու rv-ի մեջ, որպեսզի հանկարծ հիշողությունից դուրս չթռնենք*/
 double VirtualMachine::execute(const std::vector<Instruction>& program, std::vector<double>& rv) {
     if (program.empty()) return 0.0;
 
-    // Ensure result vector is large enough
     size_t maxIdx = 0;
+    /*պատրաստում ենք հիշողություն*/
     for (const auto& instr : program) {
         maxIdx = std::max(maxIdx, (size_t)std::max({instr.resIdx, instr.left, instr.right}));
         if (instr.left >= 0) maxIdx = std::max(maxIdx, (size_t)instr.left);
@@ -19,6 +22,8 @@ double VirtualMachine::execute(const std::vector<Instruction>& program, std::vec
 
     double lastResult = 0.0;
 
+    /*VM-ը հերթով կարդում է program վեկտորի մեջ լցված հրահանգները։ Ամեն հրահանգ 
+    ունի օպերատոր, left և right (թվերի տեղերը) և resIdx (որտեղ պահել պատասխանը)*/
     for (size_t i = 0; i < program.size(); i++) {
         const auto& instr = program[i];
         std::cout << "[VM] ";
@@ -67,7 +72,7 @@ double VirtualMachine::execute(const std::vector<Instruction>& program, std::vec
         }
 
         lastResult = rv[instr.resIdx];
-        std::cout << " = " << lastResult << std::endl;
+        std::cout << " = " << lastResult << "\n";
     }
 
     return lastResult;

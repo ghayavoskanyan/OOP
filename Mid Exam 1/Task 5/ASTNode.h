@@ -51,7 +51,7 @@ public:
     int compile(std::vector<Instruction>& prog) const override;
 };
 
-// --- Assignment Node ---
+// Assignment Node
 class AssignmentNode : public ASTNode {
     std::string varName;
     std::unique_ptr<ASTNode> expression;

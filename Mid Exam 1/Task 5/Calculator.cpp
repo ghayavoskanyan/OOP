@@ -17,7 +17,7 @@ double Calculator::calculate(std::unique_ptr<ASTNode> root) {
     
     std::cout << "\n--- VM Iterative Execution ---" << "\n";
     double result = vm.execute(program, rv);
-    std::cout << "--- End ---" << std::endl;
+    std::cout << "--- End ---\n";
 
     return result;
 }

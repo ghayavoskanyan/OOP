@@ -10,10 +10,10 @@
 
 class Manager {
 private:
-    SymbolTable symbolTable;
+    SymbolTable symbolTable; /*ստեղ պահվում են փոփոխականները, ասենք x = 2*/
     std::unique_ptr<Lexer> lexer;
     std::unique_ptr<Parser> parser;
-    std::unique_ptr<Calculator> calculator;
+    std::unique_ptr<Calculator> calculator; /*այս 3-ը մասնագետներն են*/
     
     std::vector<std::unique_ptr<std::istringstream>> ownedStreams; 
     

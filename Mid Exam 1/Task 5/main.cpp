@@ -5,7 +5,7 @@
 #include "Manager.h"
 
 int main() {
-    Manager manager;
+    Manager manager; //կանչում ենք դիրիժորին
     std::string input;
     
     std::cout << "Expression Calculator!\n";
@@ -17,7 +17,7 @@ int main() {
     std::cout << "  x = (5 + 3) * 2\n";
     std::cout << "Type 'quit' to exit\n\n";
     
-    while (true) {
+    while (true) { //մտնում ենք անվերջ ցիկլ, մինչև user-ը quit/exit չանի
         std::cout << "Enter expression: ";
         std::getline(std::cin, input);
         
@@ -30,15 +30,13 @@ int main() {
         }
         
         try {
-            manager.setInput(input);
-            double result = manager.evaluate();
-            std::cout << "Result: " << result << "\n";
+            manager.setInput(input); //մուտքագրած տեքստը տալիս ենք մենեջերին
+            double result = manager.evaluate(); //ասում ենք հաշվիր
+            std::cout << "Result: " << result << "\n"; //արդյունքն էլ տպիր
             
-            // Check if it was an assignment and show variable value
-            size_t eqPos = input.find('=');
-            if (eqPos != std::string::npos) {
+            size_t eqPos = input.find('='); 
+            if (eqPos != std::string::npos) { /*մաքրումա բացատներն ու հարցնումա մենեջեին թե փոփոխականի արժեքն ինչ է ու տպում է*/
                 std::string varName = input.substr(0, eqPos);
-                // Trim whitespace
                 size_t first = varName.find_first_not_of(" \t");
                 if (first != std::string::npos) {
                     varName = varName.substr(first);
@@ -53,7 +51,7 @@ int main() {
                 }
             }
         }
-        catch (const std::exception& e) {
+        catch (const std::exception& e) { /*սխալներն ա բռնում։ Որ գրեմ 5/0 ծրագիրս չի քրաշվի, կասի որ error կա*/
             std::cerr << "Error: " << e.what() << "\n";
         }
         

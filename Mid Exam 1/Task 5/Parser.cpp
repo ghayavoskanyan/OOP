@@ -1,3 +1,5 @@
+/*Parser-ը ստուգում է, թե արդյոք այդ բառերը ճիշտ հերթականությամբ են դրված՝ քերականությունը և 
+դրանցից կառուցում է AST ծառը*/
 #include "Parser.h"
 #include "Lexer.h"
 #include <stdexcept>
@@ -13,6 +15,7 @@ void Parser::initializeTransitionMatrix() {
         for (int j = 0; j < TOKEN_TYPE_COUNT; j++) 
             transitionMatrix[i][j] = ParserState::Error;
 
+    /*Փարսերի վիճակները՝ Start, Operand, Operator, Assignment*/
     // Start state
     transitionMatrix[0][1] = ParserState::Operand;    // Number
     transitionMatrix[0][2] = ParserState::Operand;    // Name
@@ -38,6 +41,9 @@ void Parser::initializeTransitionMatrix() {
     transitionMatrix[3][2] = ParserState::Operand;    // Variable
     transitionMatrix[3][3] = ParserState::Operator;   // Operator (unary)
     transitionMatrix[3][4] = ParserState::Operand;    // '('
+
+    /*Սա նրա համար է, որ ստուգի սինտաքսը։ Օրինակ՝ եթե գրեմ 5 + * 3, փարսերը կտեսնի, 
+    որ Operator-ից հետո նորից Operator գալ չի կարող (բացի unary դեպքից) ու Error կտա*/
 }
 
 int Parser::getTokenTypeIndex(TokenType type) {
@@ -65,16 +71,14 @@ void Parser::processToken() {
             
         case TokenType::Operator: {
             char op = currentToken.value[0];
-            // Check if it's a unary operator
+            /*Ստուգում ենք սա սովորական հանում է, թե unary minus*/
             bool isUnary = (currentState == ParserState::Start ||
                            currentState == ParserState::Operator ||
                            currentState == ParserState::Assignment);
             
             if (isUnary && (op == '-' || op == '+')) {
-                // For unary minus, push a special marker
                 operatorStack.push(op == '-' ? 'u' : 'p');
             } else {
-                // Binary operator - apply precedence
                 while (!operatorStack.empty() && operatorStack.top() != '(' && 
                        getOperatorPrecedence(operatorStack.top()) >= getOperatorPrecedence(op)) {
                     applyOperator();
@@ -98,7 +102,6 @@ void Parser::processToken() {
             break;
             
         case TokenType::Assignment: 
-            // Assignment has lowest precedence
             while (!operatorStack.empty() && operatorStack.top() != '(') {
                 applyOperator();
             }
@@ -109,6 +112,7 @@ void Parser::processToken() {
     }
 }
 
+/*առաջնահերթություններն է*/
 int Parser::getOperatorPrecedence(char op) {
     if (op == 'u' || op == 'p') return 3;  // Unary operators
     if (op == '*' || op == '/') return 2;
@@ -120,11 +124,13 @@ int Parser::getOperatorPrecedence(char op) {
 void Parser::applyOperator() {
     if (operatorStack.empty()) return;
     
+    /*էս ֆունկցիան ստեկից վերցնում է նշանը և համապատասխան թվերը ու սարքում ծառի հանգույց*/
+    /*Օրինակ, եթե ունենք 5 + 3, նա վերցնում է 5-ը և 3-ը, սարքում է + հանգույց, 
+    որի ձախ կողմում 5-ն է, աջում՝ 3-ը։*/
     char op = operatorStack.top(); 
     operatorStack.pop();
 
     if (op == 'u' || op == 'p') {
-        // Unary operator
         if (nodeStack.empty()) {
             throw std::runtime_error("No operand for unary operator");
         }
@@ -132,7 +138,6 @@ void Parser::applyOperator() {
         nodeStack.pop();
         nodeStack.push(std::make_unique<UnaryOpNode>(op == 'u' ? '-' : '+', std::move(operand)));
     } else {
-        // Binary operator
         if (nodeStack.size() < 2) {
             throw std::runtime_error("Not enough operands for binary operator");
         }
@@ -143,7 +148,6 @@ void Parser::applyOperator() {
         nodeStack.pop();
 
         if (op == '=') {
-            // Check if left side is a variable
             if (left->type != NodeType::VariableNode) {
                 throw std::runtime_error("Left side of assignment must be a variable");
             }
@@ -156,6 +160,9 @@ void Parser::applyOperator() {
     }
 }
 
+/*էս ֆունկցիան միացնում է ամեն ինչ իրար*/
+/*Ունեմ 2 ստեկ։ Node stack-ում պահում եմ թվերը կամ արդեն պատրաստի ծառի կտորները։
+Operator stack-ում պահում եմ նշանները + * ( */
 std::unique_ptr<ASTNode> Parser::parse() {
     reset();
     
@@ -181,7 +188,6 @@ std::unique_ptr<ASTNode> Parser::parse() {
         currentState = next;
     }
     
-    // Apply remaining operators
     while (!operatorStack.empty()) {
         applyOperator();
     }
