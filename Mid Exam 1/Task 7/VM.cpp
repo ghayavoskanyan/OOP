@@ -35,19 +35,20 @@ double VirtualMachine::execute(const std::vector<Instruction>& program) {
             }
             
             case OpCode::LOAD: {
-                auto& data = std::get<ArithData>(instr.data);
-                // Եթե dest-ը var ինդեքս է, ուրեմն store
-                if (data.dest < values.size()) {
-                    values[data.dest] = rv[data.right];
-                    std::cout << "STORE var[" << (int)data.dest << "], r" << (int)data.right;
-                    lastResult = rv[data.right];
-                } else {
-                    rv[data.dest] = values[data.right];
-                    std::cout << "LOAD r" << (int)data.dest << ", [v" << (int)data.right << "]";
-                    lastResult = rv[data.dest];
-                }
-                break;
-            }
+            auto& data = std::get<ArithData>(instr.data);
+            rv[data.dest] = values[data.right]; 
+            std::cout << "LOAD r" << (int)data.dest << ", [v" << (int)data.right << "]";
+            lastResult = rv[data.dest];
+            break;
+        }
+
+        case OpCode::STORE: {
+            auto& data = std::get<ArithData>(instr.data);
+            values[data.dest] = rv[data.right];
+            std::cout << "STORE var[" << (int)data.dest << "], r" << (int)data.right;
+            lastResult = values[data.dest];
+            break;
+        }
             
             case OpCode::ADD: {
                 auto& data = std::get<ArithData>(instr.data);

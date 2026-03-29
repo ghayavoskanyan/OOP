@@ -37,7 +37,6 @@ int InstructionCalculator::compileNode(const ASTNode* node) {
             int reg = getNewRegister();
             int varIdx = symbolTable.getIndex(var->getName());
             program.push_back(Instruction(OpCode::LOAD, ArithData{(unsigned char)reg, 0, (unsigned char)varIdx}));
-            nodeToReg[node] = reg;
             return reg;
         }
         
@@ -79,8 +78,7 @@ int InstructionCalculator::compileNode(const ASTNode* node) {
             auto* assign = static_cast<const AssignmentNode*>(node);
             int exprReg = compileNode(assign->getExpression().get());
             int varIdx = symbolTable.getIndex(assign->getVarName());
-            program.push_back(Instruction(OpCode::LOAD, ArithData{(unsigned char)varIdx, 0, (unsigned char)exprReg}));
-            nodeToReg[node] = exprReg;
+            program.push_back(Instruction(OpCode::STORE, ArithData{(unsigned char)varIdx, 0, (unsigned char)exprReg}));
             return exprReg;
         }
     }

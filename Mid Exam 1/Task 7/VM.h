@@ -7,6 +7,7 @@
 enum class OpCode : unsigned char {
     LI,   // Load Immediate (const -> r)
     LOAD, // Load Variable (var -> r) կամ Store (r -> var)
+    STORE,
     ADD,
     SUB,
     MUL,
