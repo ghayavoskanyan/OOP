@@ -9,7 +9,7 @@ private:
     Lexer& lexer;
     SymbolTable& symbolTable;
 
-    std::unique_ptr<ASTNode>       parseExpression();
+    std::unique_ptr<ASTNode>       parseExpression(bool stopAtCloseParen = false);
     std::unique_ptr<StatementNode> parseBlock();
     std::unique_ptr<StatementNode> parseIfStatement();
     std::unique_ptr<StatementNode> parseWhileStatement();

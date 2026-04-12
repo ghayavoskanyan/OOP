@@ -135,6 +135,16 @@ double VirtualMachine::execute(const std::vector<Instruction>& program) {
                 if (zeroFlag || signedFlag) { pc = (size_t)d.dest; continue; }
                 break;
             }
+            case OpCode::PRINT: {
+                auto& d = std::get<ArithData>(instr.data);
+                if (d.dest < rv.size()) {
+                    std::cout << rv[d.dest] << std::endl;
+                } else {
+                    std::cout << 0.0 << std::endl;
+                }
+                lastResult = (d.dest < rv.size()) ? rv[d.dest] : 0.0;
+                break;
+            }
             default:
                 throw std::runtime_error("Unknown opcode");
         }

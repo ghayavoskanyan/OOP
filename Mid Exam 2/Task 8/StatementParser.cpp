@@ -6,9 +6,9 @@
 StatementParser::StatementParser(Lexer& lex, SymbolTable& symTable)
     : lexer(lex), symbolTable(symTable) {}
 
-std::unique_ptr<ASTNode> StatementParser::parseExpression() {
+std::unique_ptr<ASTNode> StatementParser::parseExpression(bool stopAtCloseParen) {
     Parser exprParser(lexer, symbolTable);
-    return exprParser.parse();
+    return exprParser.parse(stopAtCloseParen);
 }
 
 std::unique_ptr<StatementNode> StatementParser::parseBlock() {
@@ -42,7 +42,7 @@ std::unique_ptr<StatementNode> StatementParser::parseBlock() {
             std::istringstream ss(fullExpr);
             Lexer tmpLex(ss);
             Parser tmpParser(tmpLex, symbolTable);
-            auto expr = tmpParser.parse();
+            auto expr = tmpParser.parse(false);
             if (expr) block->addStatement(std::make_unique<ExprStatement>(std::move(expr)));
         } else if (t.type == TokenType::Semicolon) {
             continue;
@@ -58,7 +58,7 @@ std::unique_ptr<StatementNode> StatementParser::parseIfStatement() {
     if (op.type != TokenType::OpenParen)
         throw std::runtime_error("Expected '(' after if");
 
-    auto condition = parseExpression();
+    auto condition = parseExpression(true);
 
     Token cp = lexer.getNextToken();
     if (cp.type != TokenType::CloseParen)
@@ -82,6 +82,8 @@ std::unique_ptr<StatementNode> StatementParser::parseIfStatement() {
         } else {
             throw std::runtime_error("Expected '{' or 'if' after else");
         }
+    } else {
+        lexer.pushBack(next);
     }
 
     return std::make_unique<IfNode>(std::move(condition), std::move(thenBody), std::move(elseBody));
@@ -92,7 +94,7 @@ std::unique_ptr<StatementNode> StatementParser::parseWhileStatement() {
     if (op.type != TokenType::OpenParen)
         throw std::runtime_error("Expected '(' after while");
 
-    auto condition = parseExpression();
+    auto condition = parseExpression(true);
 
     Token cp = lexer.getNextToken();
     if (cp.type != TokenType::CloseParen)
@@ -111,15 +113,20 @@ std::unique_ptr<StatementNode> StatementParser::parseForStatement() {
     if (op.type != TokenType::OpenParen)
         throw std::runtime_error("Expected '(' after for");
 
-    auto init = parseExpression();
+    auto init = parseExpression(false);
+    Token semi1 = lexer.getNextToken();
+    if (semi1.type != TokenType::Semicolon && semi1.type != TokenType::CloseParen)
+        throw std::runtime_error("Expected ';' after for init");
 
-    auto condition = parseExpression();
+    auto condition = parseExpression(false);
+    Token semi2 = lexer.getNextToken();
+    if (semi2.type != TokenType::Semicolon && semi2.type != TokenType::CloseParen)
+        throw std::runtime_error("Expected ';' after for condition");
 
-    auto update = parseExpression();
-
+    auto update = parseExpression(false);
     Token cp = lexer.getNextToken();
     if (cp.type != TokenType::CloseParen)
-        throw std::runtime_error("Expected ')' after for(...)");
+        throw std::runtime_error("Expected ')' after for update");
 
     Token ob = lexer.getNextToken();
     if (ob.type != TokenType::OpenBrace)
@@ -134,13 +141,16 @@ std::unique_ptr<StatementNode> StatementParser::parsePrintStatement() {
     if (op.type != TokenType::OpenParen)
         throw std::runtime_error("Expected '(' after print");
 
-    auto expr = parseExpression();
+    // Parse expression and stop at the closing ')'
+    auto expr = parseExpression(true);
 
     Token cp = lexer.getNextToken();
     if (cp.type != TokenType::CloseParen)
         throw std::runtime_error("Expected ')' after print(...)");
 
     Token semi = lexer.getNextToken();
+    if (semi.type != TokenType::Semicolon)
+        throw std::runtime_error("Expected ';' after print(...)");
 
     return std::make_unique<PrintNode>(std::move(expr), symbolTable);
 }
@@ -167,7 +177,7 @@ std::unique_ptr<StatementNode> StatementParser::parseStatement() {
         std::istringstream ss(fullExpr);
         Lexer tmpLex(ss);
         Parser tmpParser(tmpLex, symbolTable);
-        auto expr = tmpParser.parse();
+        auto expr = tmpParser.parse(false);
         if (expr) return std::make_unique<ExprStatement>(std::move(expr));
     }
 

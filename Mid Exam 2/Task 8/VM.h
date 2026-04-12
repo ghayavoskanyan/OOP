@@ -8,7 +8,8 @@ enum class OpCode : unsigned char {
     LI, LOAD, STORE,
     ADD, SUB, MUL, DIV,
     LIL, LIH,
-    CMP, JMP, JE, JNE, JG, JL, JGE, JLE
+    CMP, JMP, JE, JNE, JG, JL, JGE, JLE,
+    PRINT   // added for print statement
 };
 
 struct ArithData {

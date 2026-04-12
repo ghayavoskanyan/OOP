@@ -13,8 +13,9 @@ PrintNode::PrintNode(std::unique_ptr<ASTNode> e, SymbolTable& sym) : symbolTable
     expr = std::move(e); type = StatementType::PrintNode;
 }
 int PrintNode::compile(std::vector<Instruction>& prog) const {
-    if (expr) return expr->compile(prog);
-    return 0;
+    int reg = expr->compile(prog);
+    prog.push_back(Instruction(OpCode::PRINT, ArithData{(unsigned char)reg, 0, 0}));
+    return reg;
 }
 
 IfNode::IfNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<StatementNode> thenStmt,
