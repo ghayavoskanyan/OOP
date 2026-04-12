@@ -113,17 +113,20 @@ std::unique_ptr<StatementNode> StatementParser::parseForStatement() {
     if (op.type != TokenType::OpenParen)
         throw std::runtime_error("Expected '(' after for");
 
+    // init: stops at first ';'
     auto init = parseExpression(false);
     Token semi1 = lexer.getNextToken();
-    if (semi1.type != TokenType::Semicolon && semi1.type != TokenType::CloseParen)
+    if (semi1.type != TokenType::Semicolon)
         throw std::runtime_error("Expected ';' after for init");
 
+    // condition: stops at next ';'
     auto condition = parseExpression(false);
     Token semi2 = lexer.getNextToken();
-    if (semi2.type != TokenType::Semicolon && semi2.type != TokenType::CloseParen)
+    if (semi2.type != TokenType::Semicolon)
         throw std::runtime_error("Expected ';' after for condition");
 
-    auto update = parseExpression(false);
+    // update: stops at ')'
+    auto update = parseExpression(true);
     Token cp = lexer.getNextToken();
     if (cp.type != TokenType::CloseParen)
         throw std::runtime_error("Expected ')' after for update");
@@ -141,7 +144,6 @@ std::unique_ptr<StatementNode> StatementParser::parsePrintStatement() {
     if (op.type != TokenType::OpenParen)
         throw std::runtime_error("Expected '(' after print");
 
-    // Parse expression and stop at the closing ')'
     auto expr = parseExpression(true);
 
     Token cp = lexer.getNextToken();
