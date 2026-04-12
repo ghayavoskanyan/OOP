@@ -83,7 +83,10 @@ void Parser::processToken() {
         }
         case TokenType::Operator: {
             char op = currentToken.value[0];
-            bool isUnary = (currentState == ParserState::Start || currentState == ParserState::Operator);
+            // FIX: treat unary after Start, Operator, or Assignment
+            bool isUnary = (currentState == ParserState::Start ||
+                            currentState == ParserState::Operator ||
+                            currentState == ParserState::Assignment);
             if (isUnary && (op == '-' || op == '+')) {
                 operatorStack.push(op == '-' ? 'u' : 'p');
             } else {
@@ -150,15 +153,15 @@ std::unique_ptr<ASTNode> Parser::parse(bool stopAtCloseParen) {
         if (token.type == TokenType::Semicolon) break;
         if (token.type == TokenType::Keyword || token.type == TokenType::OpenBrace ||
             token.type == TokenType::CloseBrace) {
-            lexer.pushBack(token);   // put back so caller can handle it
+            lexer.pushBack(token);   // put back for statement parser
             break;
         }
         if (token.type == TokenType::CloseParen) {
             if (stopAtCloseParen) {
-                lexer.pushBack(token);
+                lexer.pushBack(token);   // caller will consume ')'
                 break;
             }
-            // normal handling inside parentheses
+            // normal handling inside parentheses (should not happen with stopAtCloseParen=true)
             int tidx = getTokenTypeIndex(token.type);
             if (currentState == ParserState::Start) break;
             currentToken = token;
