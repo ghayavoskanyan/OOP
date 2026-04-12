@@ -1,4 +1,4 @@
-/*Token.h*/ #pragma once
+#pragma once
 #include <string>
 
 enum class TokenType {
@@ -22,6 +22,5 @@ struct Token {
     std::string value;
     int line;
     int column;
-    
     Token(TokenType t = TokenType::Unknown, const std::string& v = "", int l = 0, int c = 0);
 };

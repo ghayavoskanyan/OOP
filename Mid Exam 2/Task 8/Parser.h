@@ -1,4 +1,4 @@
-/*Parser.h*/ #pragma once
+#pragma once
 #include "Token.h"
 #include "ASTNode.h"
 #include "SymbolTable.h"
@@ -7,13 +7,7 @@
 
 class Lexer;
 
-enum class ParserState {
-    Start = 0,
-    Operand = 1,
-    Operator = 2,
-    Assignment = 3,
-    Error = 4
-};
+enum class ParserState { Start = 0, Operand = 1, Operator = 2, Assignment = 3, Error = 4 };
 
 class Parser {
 private:
@@ -23,19 +17,19 @@ private:
     std::stack<std::unique_ptr<ASTNode>> nodeStack;
     std::stack<char> operatorStack;
     Token currentToken;
-   
+
     static const int STATE_COUNT = 5;
     static const int TOKEN_TYPE_COUNT = 10;
-   
+
     ParserState transitionMatrix[STATE_COUNT][TOKEN_TYPE_COUNT];
     void initializeTransitionMatrix();
-    int getTokenTypeIndex(TokenType type);
+    int  getTokenTypeIndex(TokenType type);
     void processToken();
-    int getOperatorPrecedence(char op);
+    int  getOperatorPrecedence(char op);
     void applyOperator();
-   
+
 public:
     Parser(Lexer& lex, SymbolTable& symTable);
-    std::unique_ptr<ASTNode> parse();
+    std::unique_ptr<ASTNode> parse(bool stopAtCloseParen = false);
     void reset();
 };

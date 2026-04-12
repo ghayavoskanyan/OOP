@@ -1,8 +1,7 @@
-/*ASTNode.h*/ #pragma once
+#pragma once
 #include <memory>
 #include <string>
 #include <vector>
-#include <iostream>
 #include "VM.h"
 #include "SymbolTable.h"
 
@@ -27,7 +26,6 @@ class VariableNode : public ASTNode {
 public:
     std::string name;
     SymbolTable& symbolTable;
-
     VariableNode(const std::string& n, SymbolTable& sym);
     int compile(std::vector<Instruction>& prog) const override;
     const std::string& getName() const { return name; }

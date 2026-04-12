@@ -1,4 +1,4 @@
-/*VM.h*/ #pragma once
+#pragma once
 #include <vector>
 #include <stdexcept>
 #include <variant>
@@ -8,7 +8,7 @@ enum class OpCode : unsigned char {
     LI, LOAD, STORE,
     ADD, SUB, MUL, DIV,
     LIL, LIH,
-    CMP, JMP, JE, JNE, JG, JL
+    CMP, JMP, JE, JNE, JG, JL, JGE, JLE
 };
 
 struct ArithData {
@@ -27,7 +27,6 @@ using InstData = std::variant<ArithData, LiData>;
 struct Instruction {
     OpCode opcode;
     InstData data;
-    
     Instruction() : opcode(OpCode::LI), data(LiData{0, 0}) {}
     Instruction(OpCode op, ArithData d) : opcode(op), data(d) {}
     Instruction(OpCode op, LiData d) : opcode(op), data(d) {}
@@ -42,9 +41,8 @@ private:
     bool zeroFlag;
     bool carryFlag;
     bool signedFlag;
-    
 public:
-    VirtualMachine(SymbolTable& sym, size_t regCount = 16);
+    VirtualMachine(SymbolTable& sym, size_t regCount = 64);
     double execute(const std::vector<Instruction>& program);
     void setRegister(size_t idx, double val);
     double getRegister(size_t idx) const;

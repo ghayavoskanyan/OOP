@@ -1,8 +1,7 @@
-/*ICalculator.h*/ #pragma once
+#pragma once
 #include "ASTNode.h"
 #include "SymbolTable.h"
 #include "VM.h"
-#include <memory>
 #include <vector>
 
 class ICalculator {

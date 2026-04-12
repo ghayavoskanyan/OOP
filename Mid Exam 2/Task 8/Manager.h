@@ -1,4 +1,4 @@
-/*Manager.h*/ #pragma once
+#pragma once
 #include "Lexer.h"
 #include "StatementParser.h"
 #include "ICalculator.h"
@@ -15,10 +15,16 @@ private:
     std::unique_ptr<StatementParser> stmtParser;
     std::unique_ptr<InstructionCalculator> calculator;
     std::vector<std::unique_ptr<std::istringstream>> ownedStreams;
+
+    void runProgram(const std::string& code, bool printResults);
+
 public:
     Manager();
     void setInput(const std::string& expression);
+    bool setInputFromFile(const std::string& filepath);
     double evaluate();
+    void runFile(const std::string& filepath);
     bool getVariable(const std::string& name, double& value);
+    void printAllVariables();
     void reset();
 };

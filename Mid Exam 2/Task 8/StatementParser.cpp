@@ -1,9 +1,10 @@
-/*StatementParser.cpp*/ #include "StatementParser.h"
+#include "StatementParser.h"
 #include "Parser.h"
 #include <stdexcept>
-#include <iostream>
+#include <sstream>
 
-StatementParser::StatementParser(Lexer& lex, SymbolTable& symTable) : lexer(lex), symbolTable(symTable) {}
+StatementParser::StatementParser(Lexer& lex, SymbolTable& symTable)
+    : lexer(lex), symbolTable(symTable) {}
 
 std::unique_ptr<ASTNode> StatementParser::parseExpression() {
     Parser exprParser(lexer, symbolTable);
@@ -12,53 +13,66 @@ std::unique_ptr<ASTNode> StatementParser::parseExpression() {
 
 std::unique_ptr<StatementNode> StatementParser::parseBlock() {
     auto block = std::make_unique<BlockNode>();
-    // The opening brace has already been consumed by the caller (parseIfStatement)
-    // Now we read statements until we find the closing brace
     while (true) {
-        Token next = lexer.getNextToken();
-        if (next.type == TokenType::CloseBrace) {
-            // Consumed the closing brace, exit loop
-            break;
-        }
-        if (next.type == TokenType::EndOfExpr) {
-            throw std::runtime_error("Unexpected end of input in block");
-        }
-        // For now, we only handle assignment statements (Name = expression;)
-        if (next.type == TokenType::Name) {
-            // We have a variable name. We need to parse the rest of the assignment.
-            // Since the expression parser expects to start from the variable, we need to feed this token back.
-            // But we cannot. So we'll use a separate Parser instance but we need to put the token back.
-            // Simple workaround: use a Parser that takes the current lexer state. The lexer has already advanced.
-            // This is getting messy. Let's assume the block only contains simple assignments and we parse manually.
-            // For brevity, I'll just skip actual compilation and return a dummy SeqNode.
-            // But we need to consume the rest of the statement up to semicolon.
-            // Let's consume tokens until semicolon.
+        Token t = lexer.getNextToken();
+        if (t.type == TokenType::CloseBrace) break;
+        if (t.type == TokenType::EndOfExpr)
+            throw std::runtime_error("Unexpected end of input inside block");
+
+        if (t.type == TokenType::Keyword && t.value == "if") {
+            block->addStatement(parseIfStatement());
+        } else if (t.type == TokenType::Keyword && t.value == "while") {
+            block->addStatement(parseWhileStatement());
+        } else if (t.type == TokenType::Keyword && t.value == "for") {
+            block->addStatement(parseForStatement());
+        } else if (t.type == TokenType::Keyword && t.value == "print") {
+            block->addStatement(parsePrintStatement());
+        } else if (t.type == TokenType::Name || t.type == TokenType::Number ||
+                   t.type == TokenType::Operator) {
+            std::string fullExpr = t.value;
+            int depth = 0;
             while (true) {
-                Token t = lexer.getNextToken();
-                if (t.type == TokenType::Semicolon) break;
-                if (t.type == TokenType::EndOfExpr) throw std::runtime_error("Missing semicolon");
+                Token nx = lexer.getNextToken();
+                if (nx.type == TokenType::OpenBrace)  depth++;
+                if (nx.type == TokenType::CloseBrace) { if (depth == 0) { break; } depth--; }
+                if ((nx.type == TokenType::Semicolon || nx.type == TokenType::EndOfExpr) && depth == 0) break;
+                fullExpr += " " + nx.value;
             }
-            block->addStatement(std::make_unique<SeqNode>());
+
+            std::istringstream ss(fullExpr);
+            Lexer tmpLex(ss);
+            Parser tmpParser(tmpLex, symbolTable);
+            auto expr = tmpParser.parse();
+            if (expr) block->addStatement(std::make_unique<ExprStatement>(std::move(expr)));
+        } else if (t.type == TokenType::Semicolon) {
+            continue;
         } else {
-            throw std::runtime_error("Unexpected token in block: " + next.value);
+            throw std::runtime_error("Unexpected token in block: '" + t.value + "'");
         }
     }
     return block;
 }
 
 std::unique_ptr<StatementNode> StatementParser::parseIfStatement() {
-    // 'if' token already consumed by parse()
-    Token openParen = lexer.getNextToken();
-    if (openParen.type != TokenType::OpenParen) throw std::runtime_error("Expected '(' after if");
+    Token op = lexer.getNextToken();
+    if (op.type != TokenType::OpenParen)
+        throw std::runtime_error("Expected '(' after if");
+
     auto condition = parseExpression();
-    Token closeParen = lexer.getNextToken();
-    if (closeParen.type != TokenType::CloseParen) throw std::runtime_error("Expected ')' after condition");
-    Token openBrace = lexer.getNextToken();
-    if (openBrace.type != TokenType::OpenBrace) throw std::runtime_error("Expected '{' after condition");
-    auto thenBody = parseBlock(); // This will consume the matching '}'
-    // After parseBlock returns, the next token is whatever follows '}'
+
+    Token cp = lexer.getNextToken();
+    if (cp.type != TokenType::CloseParen)
+        throw std::runtime_error("Expected ')' after if condition");
+
+    Token ob = lexer.getNextToken();
+    if (ob.type != TokenType::OpenBrace)
+        throw std::runtime_error("Expected '{' after if(...)");
+
+    auto thenBody = parseBlock();
+
     Token next = lexer.getNextToken();
     std::unique_ptr<StatementNode> elseBody = nullptr;
+
     if (next.type == TokenType::Keyword && next.value == "else") {
         Token afterElse = lexer.getNextToken();
         if (afterElse.type == TokenType::OpenBrace) {
@@ -68,32 +82,108 @@ std::unique_ptr<StatementNode> StatementParser::parseIfStatement() {
         } else {
             throw std::runtime_error("Expected '{' or 'if' after else");
         }
-    } else {
-        // Put back the token? Not needed, we leave it for the caller.
     }
+
     return std::make_unique<IfNode>(std::move(condition), std::move(thenBody), std::move(elseBody));
 }
 
 std::unique_ptr<StatementNode> StatementParser::parseWhileStatement() {
-    Token openParen = lexer.getNextToken();
-    if (openParen.type != TokenType::OpenParen) throw std::runtime_error("Expected '(' after while");
+    Token op = lexer.getNextToken();
+    if (op.type != TokenType::OpenParen)
+        throw std::runtime_error("Expected '(' after while");
+
     auto condition = parseExpression();
-    Token closeParen = lexer.getNextToken();
-    if (closeParen.type != TokenType::CloseParen) throw std::runtime_error("Expected ')' after condition");
-    Token openBrace = lexer.getNextToken();
-    if (openBrace.type != TokenType::OpenBrace) throw std::runtime_error("Expected '{' after condition");
+
+    Token cp = lexer.getNextToken();
+    if (cp.type != TokenType::CloseParen)
+        throw std::runtime_error("Expected ')' after while condition");
+
+    Token ob = lexer.getNextToken();
+    if (ob.type != TokenType::OpenBrace)
+        throw std::runtime_error("Expected '{' after while(...)");
+
     auto body = parseBlock();
     return std::make_unique<WhileNode>(std::move(condition), std::move(body));
 }
 
+std::unique_ptr<StatementNode> StatementParser::parseForStatement() {
+    Token op = lexer.getNextToken();
+    if (op.type != TokenType::OpenParen)
+        throw std::runtime_error("Expected '(' after for");
+
+    auto init = parseExpression();
+
+    auto condition = parseExpression();
+
+    auto update = parseExpression();
+
+    Token cp = lexer.getNextToken();
+    if (cp.type != TokenType::CloseParen)
+        throw std::runtime_error("Expected ')' after for(...)");
+
+    Token ob = lexer.getNextToken();
+    if (ob.type != TokenType::OpenBrace)
+        throw std::runtime_error("Expected '{' after for(...)");
+
+    auto body = parseBlock();
+    return std::make_unique<ForNode>(std::move(init), std::move(condition), std::move(update), std::move(body));
+}
+
+std::unique_ptr<StatementNode> StatementParser::parsePrintStatement() {
+    Token op = lexer.getNextToken();
+    if (op.type != TokenType::OpenParen)
+        throw std::runtime_error("Expected '(' after print");
+
+    auto expr = parseExpression();
+
+    Token cp = lexer.getNextToken();
+    if (cp.type != TokenType::CloseParen)
+        throw std::runtime_error("Expected ')' after print(...)");
+
+    Token semi = lexer.getNextToken();
+
+    return std::make_unique<PrintNode>(std::move(expr), symbolTable);
+}
+
+std::unique_ptr<StatementNode> StatementParser::parseStatement() {
+    Token t = lexer.getNextToken();
+    if (t.type == TokenType::EndOfExpr) return nullptr;
+
+    if (t.type == TokenType::Keyword) {
+        if (t.value == "if")    return parseIfStatement();
+        if (t.value == "while") return parseWhileStatement();
+        if (t.value == "for")   return parseForStatement();
+        if (t.value == "print") return parsePrintStatement();
+    }
+
+    if (t.type == TokenType::Name || t.type == TokenType::Number ||
+        t.type == TokenType::Operator) {
+        std::string fullExpr = t.value;
+        while (true) {
+            Token nx = lexer.getNextToken();
+            if (nx.type == TokenType::Semicolon || nx.type == TokenType::EndOfExpr) break;
+            fullExpr += " " + nx.value;
+        }
+        std::istringstream ss(fullExpr);
+        Lexer tmpLex(ss);
+        Parser tmpParser(tmpLex, symbolTable);
+        auto expr = tmpParser.parse();
+        if (expr) return std::make_unique<ExprStatement>(std::move(expr));
+    }
+
+    if (t.type == TokenType::Semicolon) return std::make_unique<SeqNode>();
+
+    return nullptr;
+}
+
 std::unique_ptr<StatementNode> StatementParser::parse() {
-    Token token = lexer.getNextToken();
-    if (token.type == TokenType::Keyword && token.value == "if") {
-        return parseIfStatement();
+    auto seq = std::make_unique<SeqNode>();
+    while (true) {
+        auto stmt = parseStatement();
+        if (!stmt) break;
+        seq->addStatement(std::move(stmt));
     }
-    if (token.type == TokenType::Keyword && token.value == "while") {
-        return parseWhileStatement();
-    }
+    if (seq) return seq;
     return nullptr;
 }
 

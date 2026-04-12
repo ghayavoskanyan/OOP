@@ -1,8 +1,6 @@
-/*Traverser.h*/ #pragma once
+#pragma once
 #include "ASTNode.h"
 #include <functional>
-#include <stack>
-#include <memory>
 
 class Traverser {
 public:
