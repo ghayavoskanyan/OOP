@@ -9,29 +9,53 @@ It supports functions, variables (global/local/static), control flow (`if`, `whi
 ```
 .
 ├── ASTNode.cpp/.h          # Abstract Syntax Tree nodes
+
 ├── CompileRegs.cpp/.h      # Register allocation / compilation utilities
+
 ├── ExeImage.cpp/.h         # Executable image format (header, sections)
+
 ├── ExprParser.cpp/.h       # Expression parsing (used by main parser)
+
 ├── ICalculator.cpp/.h      # Intermediate calculation / IR generation
+
 ├── IrEmit.h                # IR emission helpers
+
 ├── IrFile.cpp/.h           # IR file representation
+
 ├── IrToRiscv.cpp/.h        # IR → RISC‑V code generator
+
 ├── Lexer.cpp/.h            # Lexical analyzer
+
 ├── Linker.cpp/.h           # Links multiple object files
+
 ├── main.cpp                # Compiler driver
+
 ├── Manager.cpp/.h          # Manages compilation units, symbol tables
+
 ├── Makefile
+
 ├── Parser.cpp/.h           # Top‑down parser for statements
+
 ├── RiscvCpu.cpp/.h         # RISC‑V CPU emulator (inside VM)
+
 ├── RiscvISA.h              # RISC‑V instruction definitions
+
 ├── StatementNode.cpp/.h    # Statement AST nodes
+
 ├── StatementParser.cpp/.h  # Parses statements (if, while, etc.)
+
 ├── StmtInterpreter.cpp/.h  # Interprets statements (alternative to codegen)
+
 ├── SymbolTable.cpp/.h      # Symbol table with scopes
+
 ├── Token.cpp/.h            # Token representation
+
 ├── Traverser.cpp/.h        # AST traverser (for analysis / optimisation)
+
 ├── VM.cpp/.h               # Virtual machine (executes RISC‑V code)
+
 ├── VmMonitor.cpp/.h        # VM monitor (debugger, step, breakpoints)
+
 └── example.txt             # Example input program
 ```
 
