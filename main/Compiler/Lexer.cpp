@@ -7,13 +7,20 @@ Lexer::Lexer(std::istream& is) : input(is), currentState(LexerState::Start), lin
 }
 
 void Lexer::initializeKeywords() {
-    keywords["if"]    = TokenType::Keyword;
-    keywords["else"]  = TokenType::Keyword;
-    keywords["while"] = TokenType::Keyword;
-    keywords["for"]   = TokenType::Keyword;
-    keywords["print"] = TokenType::Keyword;
-    keywords["int"]   = TokenType::Keyword;
-    keywords["var"]   = TokenType::Keyword;
+    keywords["if"]       = TokenType::Keyword;
+    keywords["else"]   = TokenType::Keyword;
+    keywords["while"]  = TokenType::Keyword;
+    keywords["for"]    = TokenType::Keyword;
+    keywords["print"]  = TokenType::Keyword;
+    keywords["int"]    = TokenType::Keyword;
+    keywords["var"]    = TokenType::Keyword;
+    keywords["static"] = TokenType::Keyword;
+    keywords["return"] = TokenType::Keyword;
+    keywords["switch"] = TokenType::Keyword;
+    keywords["case"]   = TokenType::Keyword;
+    keywords["default"] = TokenType::Keyword;
+    keywords["void"]   = TokenType::Keyword;
+    keywords["break"]  = TokenType::Keyword;
 }
 
 void Lexer::initializeTransitionMatrix() {
@@ -79,6 +86,10 @@ Token Lexer::getNextToken() {
         CharType ct = getCharType(c);
 
         if (currentState == LexerState::Start && ct == CharType::Whitespace) continue;
+
+        if (currentState == LexerState::Start && currentToken.empty() && (c == ':' || c == ',')) {
+            return Token(c == ':' ? TokenType::Colon : TokenType::Comma, std::string(1, c), line, column);
+        }
 
         if (ct == CharType::Paren) {
             if (!currentToken.empty()) { input.unget(); column--; break; }

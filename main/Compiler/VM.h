@@ -1,7 +1,9 @@
 #pragma once
-#include <vector>
+#include <cstdint>
+#include <cstddef>
 #include <stdexcept>
 #include <variant>
+#include <vector>
 #include "SymbolTable.h"
 
 enum class OpCode : unsigned char {
@@ -9,17 +11,17 @@ enum class OpCode : unsigned char {
     ADD, SUB, MUL, DIV,
     LIL, LIH,
     CMP, JMP, JE, JNE, JG, JL, JGE, JLE,
-    PRINT   // added for print statement
+    PRINT
 };
 
 struct ArithData {
-    unsigned char dest;
-    unsigned char left;
-    unsigned char right;
+    uint32_t dest;
+    uint32_t left;
+    uint32_t right;
 };
 
 struct LiData {
-    unsigned char dest;
+    uint32_t dest;
     unsigned int value;
 };
 
@@ -36,15 +38,16 @@ struct Instruction {
 class VirtualMachine {
 private:
     SymbolTable& symbolTable;
-    std::vector<double> rv;
-    std::vector<double>& values;
+    std::vector<int32_t> rv;
+    std::vector<int32_t>& values;
     size_t pc;
     bool zeroFlag;
     bool carryFlag;
     bool signedFlag;
+
 public:
     VirtualMachine(SymbolTable& sym, size_t regCount = 64);
-    double execute(const std::vector<Instruction>& program);
-    void setRegister(size_t idx, double val);
-    double getRegister(size_t idx) const;
+    int32_t execute(const std::vector<Instruction>& program);
+    void setRegister(size_t idx, int32_t val);
+    int32_t getRegister(size_t idx) const;
 };

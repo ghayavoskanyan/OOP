@@ -1,32 +1,24 @@
 #include <iostream>
-#include <string>
-#include <sstream>
 #include <memory>
-#include "Manager.h"
+#include <string>
+#include "CompileRegs.h"
 #include "Lexer.h"
+#include "Manager.h"
 #include "StatementParser.h"
+#include "StmtInterpreter.h"
 #include "VM.h"
+#include "Linker.h"
 
 static void printHelp() {
     std::cout << "\n";
-    std::cout << "  Expression Calculator\n";
+    std::cout << "  OOP Compiler pipeline (int-only IR + optional RV32IM executable)\n";
     std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-    std::cout << "  Supported operations : +  -  *  /\n";
-    std::cout << "  Comparisons          : >  <  >=  <=  ==  !=\n";
-    std::cout << "  Control flow         : if / else / while / for\n";
-    std::cout << "  Output               : print(expr)\n";
-    std::cout << "  File execution       : run <filename>\n";
-    std::cout << "  Show variables       : vars\n";
-    std::cout << "  Exit                 : quit / exit\n";
-    std::cout << "\n";
-    std::cout << "  Examples:\n";
-    std::cout << "    x = 5 + 3\n";
-    std::cout << "    y = x * 2\n";
-    std::cout << "    print(y)\n";
-    std::cout << "    if (x > 3) { x = x + 1; }\n";
-    std::cout << "    while (x > 0) { x = x - 1; print(x); }\n";
-    std::cout << "    for (i = 0; i < 5; i = i + 1) { print(i); }\n";
-    std::cout << "    run program.txt\n";
+    std::cout << "  calculator.exe <file.txt>              Run source (logical VM)\n";
+    std::cout << "  calculator.exe --riscv-exe <in> <out>  Compile to .exe, run RISC-V VM\n";
+    std::cout << "  calculator.exe --emit-ir <in> <out.ir> Write logical IR file\n";
+    std::cout << "  calculator.exe --link <o1> <o2> ... -o <out.exe>  Link object/exe stubs\n";
+    std::cout << "  Interactive: + - * /, comparisons, if/else, while, for, print(expr)\n";
+    std::cout << "  Commands: run <file>, vars, quit\n";
     std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n";
 }
 
@@ -34,6 +26,51 @@ int main(int argc, char* argv[]) {
     Manager manager;
 
     if (argc >= 2) {
+        std::string a1 = argv[1];
+        if (a1 == "--riscv-exe" && argc >= 4) {
+            std::string err;
+            if (!manager.compileFileToExe(argv[2], argv[3])) {
+                std::cerr << "Compile failed.\n";
+                return 1;
+            }
+            if (!manager.runRiscvExe(argv[3], err)) {
+                std::cerr << "VM: " << err << "\n";
+                return 1;
+            }
+            return 0;
+        }
+        if (a1 == "--emit-ir" && argc >= 4) {
+            if (!manager.compileFileToIr(argv[2], argv[3])) {
+                std::cerr << "IR emit failed.\n";
+                return 1;
+            }
+            std::cout << "Wrote IR: " << argv[3] << "\n";
+            return 0;
+        }
+        if (a1 == "--link") {
+            std::vector<std::string> objs;
+            std::string out;
+            for (int i = 2; i < argc; ++i) {
+                std::string a = argv[i];
+                if (a == "-o" && i + 1 < argc) {
+                    out = argv[i + 1];
+                    ++i;
+                } else {
+                    objs.push_back(a);
+                }
+            }
+            if (out.empty() || objs.empty()) {
+                std::cerr << "Usage: --link <obj> ... -o <out.exe>\n";
+                return 1;
+            }
+            if (!linker::linkObjectFiles(objs, out)) {
+                std::cerr << "Link failed.\n";
+                return 1;
+            }
+            std::cout << "Wrote " << out << "\n";
+            return 0;
+        }
+
         std::string filepath = argv[1];
         try {
             manager.runFile(filepath);
@@ -60,7 +97,10 @@ int main(int argc, char* argv[]) {
         if (!std::getline(std::cin, line)) break;
 
         if (line == "quit" || line == "exit") break;
-        if (line == "help") { printHelp(); continue; }
+        if (line == "help") {
+            printHelp();
+            continue;
+        }
         if (line.empty()) continue;
 
         if (line.substr(0, 4) == "run ") {
@@ -92,7 +132,6 @@ int main(int argc, char* argv[]) {
         braceDepth = 0;
 
         try {
-            // Create a fresh lexer for this input line
             std::istringstream iss(input);
             Lexer lexer(iss);
             StatementParser parser(lexer, manager.getSymbolTable());
@@ -100,17 +139,22 @@ int main(int argc, char* argv[]) {
             auto stmt = parser.parse();
             if (!stmt) continue;
 
-            std::vector<Instruction> prog;
-            stmt->compile(prog);
-            VirtualMachine vm(manager.getSymbolTable());
-            double result = vm.execute(prog);
+            int32_t result = 0;
+            if (programNeedsInterpreter(stmt.get())) {
+                StmtInterpreter interp(manager.getSymbolTable());
+                result = interp.run(stmt.get());
+            } else {
+                std::vector<Instruction> prog;
+                compile_regs::reset();
+                stmt->compile(prog);
+                VirtualMachine vm(manager.getSymbolTable());
+                result = vm.execute(prog);
+            }
 
-            bool hasAssignment = (input.find('=') != std::string::npos &&
-                                  input.find("==") == std::string::npos);
-            bool hasPrint      = (input.find("print") != std::string::npos);
-            bool hasControl    = (input.find("if") != std::string::npos ||
-                                  input.find("while") != std::string::npos ||
-                                  input.find("for") != std::string::npos);
+            bool hasAssignment = (input.find('=') != std::string::npos && input.find("==") == std::string::npos);
+            bool hasPrint = (input.find("print") != std::string::npos);
+            bool hasControl = (input.find("if") != std::string::npos || input.find("while") != std::string::npos ||
+                               input.find("for") != std::string::npos || input.find("switch") != std::string::npos);
 
             if (!hasPrint && !hasControl) {
                 std::cout << "= " << result << "\n";
@@ -123,10 +167,9 @@ int main(int argc, char* argv[]) {
                 if (first != std::string::npos) {
                     varName = varName.substr(first);
                     size_t last = varName.find_last_not_of(" \t");
-                    if (last != std::string::npos)
-                        varName = varName.substr(0, last + 1);
+                    if (last != std::string::npos) varName = varName.substr(0, last + 1);
                 }
-                double val;
+                int32_t val = 0;
                 if (manager.getVariable(varName, val)) {
                     std::cout << varName << " = " << val << "\n";
                 }

@@ -1,11 +1,12 @@
 #pragma once
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 #include "VM.h"
 #include "SymbolTable.h"
 
-enum class NodeType { NumberNode, VariableNode, BinaryOpNode, UnaryOpNode, AssignmentNode };
+enum class NodeType { NumberNode, VariableNode, BinaryOpNode, UnaryOpNode, AssignmentNode, CallNode };
 
 class ASTNode {
 public:
@@ -15,11 +16,11 @@ public:
 };
 
 class NumberNode : public ASTNode {
-    double value;
+    int32_t value;
 public:
-    NumberNode(double v);
+    explicit NumberNode(int32_t v);
     int compile(std::vector<Instruction>& prog) const override;
-    double getValue() const { return value; }
+    int32_t getValue() const { return value; }
 };
 
 class VariableNode : public ASTNode {
@@ -61,4 +62,16 @@ public:
     int compile(std::vector<Instruction>& prog) const override;
     const std::string& getVarName() const { return varName; }
     const std::unique_ptr<ASTNode>& getExpression() const { return expression; }
+};
+
+class CallNode : public ASTNode {
+    std::string funcName;
+    std::vector<std::unique_ptr<ASTNode>> args;
+    SymbolTable& symbolTable;
+
+public:
+    CallNode(std::string name, std::vector<std::unique_ptr<ASTNode>> a, SymbolTable& sym);
+    int compile(std::vector<Instruction>& prog) const override;
+    const std::string& getFuncName() const { return funcName; }
+    const std::vector<std::unique_ptr<ASTNode>>& getArgs() const { return args; }
 };

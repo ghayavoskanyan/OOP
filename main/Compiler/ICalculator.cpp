@@ -1,4 +1,6 @@
 #include "ICalculator.h"
+#include "CompileRegs.h"
+#include "VM.h"
 
 InstructionCalculator::InstructionCalculator(SymbolTable& sym) : symbolTable(sym), nextReg(0) {}
 
@@ -9,13 +11,18 @@ int InstructionCalculator::compileNode(const ASTNode* node) {
     return const_cast<ASTNode*>(node)->compile(program);
 }
 
-double InstructionCalculator::calculate(const ASTNode* root) {
+int32_t InstructionCalculator::calculate(const ASTNode* root) {
     clear();
-    if (!root) return 0.0;
+    compile_regs::reset();
+    if (!root) return 0;
     compileNode(root);
     VirtualMachine vm(symbolTable, 64);
     return vm.execute(program);
 }
 
 const std::vector<Instruction>& InstructionCalculator::getProgram() const { return program; }
-void InstructionCalculator::clear() { program.clear(); nextReg = 0; }
+
+void InstructionCalculator::clear() {
+    program.clear();
+    nextReg = 0;
+}

@@ -1,24 +1,14 @@
 #include "ASTNode.h"
+#include "CompileRegs.h"
+#include "IrEmit.h"
 
-static int gRegCounter = 0;
-static int newReg() { return gRegCounter++; }
-
-static void emitLoadImm(std::vector<Instruction>& prog, int reg, double val) {
-    int intVal = (int)val;
-    if (intVal > 65535 || intVal < -32768) {
-        int low  = intVal & 0xFFFF;
-        int high = (intVal >> 16) & 0xFFFF;
-        prog.push_back(Instruction(OpCode::LIL, LiData{(unsigned char)reg, (unsigned int)low}));
-        prog.push_back(Instruction(OpCode::LIH, LiData{(unsigned char)reg, (unsigned int)high}));
-    } else {
-        prog.push_back(Instruction(OpCode::LI, LiData{(unsigned char)reg, (unsigned int)(int)intVal}));
-    }
+NumberNode::NumberNode(int32_t v) {
+    value = v;
+    type = NodeType::NumberNode;
 }
 
-NumberNode::NumberNode(double v) { value = v; type = NodeType::NumberNode; }
-
 int NumberNode::compile(std::vector<Instruction>& prog) const {
-    int reg = newReg();
+    int reg = compile_regs::newReg();
     emitLoadImm(prog, reg, value);
     return reg;
 }
@@ -28,7 +18,7 @@ VariableNode::VariableNode(const std::string& n, SymbolTable& sym) : symbolTable
 }
 
 int VariableNode::compile(std::vector<Instruction>& prog) const {
-    int reg = newReg();
+    int reg = compile_regs::newReg();
     int idx = (int)symbolTable.getIndex(name);
     prog.push_back(Instruction(OpCode::LOAD, ArithData{(unsigned char)reg, 0, (unsigned char)idx}));
     return reg;
@@ -41,7 +31,7 @@ BinaryOpNode::BinaryOpNode(char o, std::unique_ptr<ASTNode> l, std::unique_ptr<A
 int BinaryOpNode::compile(std::vector<Instruction>& prog) const {
     int lReg = left->compile(prog);
     int rReg = right->compile(prog);
-    int res  = newReg();
+    int res  = compile_regs::newReg();
 
     switch (op) {
         case '+': prog.push_back(Instruction(OpCode::ADD, ArithData{(unsigned char)res,(unsigned char)lReg,(unsigned char)rReg})); break;
@@ -115,8 +105,8 @@ UnaryOpNode::UnaryOpNode(char o, std::unique_ptr<ASTNode> node) : op(o) {
 int UnaryOpNode::compile(std::vector<Instruction>& prog) const {
     int operandReg = operand->compile(prog);
     if (op == '-') {
-        int zeroReg = newReg();
-        int resReg  = newReg();
+        int zeroReg = compile_regs::newReg();
+        int resReg  = compile_regs::newReg();
         prog.push_back(Instruction(OpCode::LI,  LiData{(unsigned char)zeroReg, 0}));
         prog.push_back(Instruction(OpCode::SUB, ArithData{(unsigned char)resReg,(unsigned char)zeroReg,(unsigned char)operandReg}));
         return resReg;
@@ -132,6 +122,16 @@ AssignmentNode::AssignmentNode(const std::string& name, std::unique_ptr<ASTNode>
 int AssignmentNode::compile(std::vector<Instruction>& prog) const {
     int exprReg = expression->compile(prog);
     int idx     = (int)symbolTable.getIndex(varName);
-    prog.push_back(Instruction(OpCode::STORE, ArithData{(unsigned char)idx, 0, (unsigned char)exprReg}));
+    prog.push_back(Instruction(OpCode::STORE, ArithData{static_cast<uint32_t>(idx), 0, static_cast<uint32_t>(exprReg)}));
     return exprReg;
+}
+
+CallNode::CallNode(std::string name, std::vector<std::unique_ptr<ASTNode>> a, SymbolTable& sym)
+    : funcName(std::move(name)), args(std::move(a)), symbolTable(sym) {
+    type = NodeType::CallNode;
+}
+
+int CallNode::compile(std::vector<Instruction>& prog) const {
+    (void)prog;
+    throw std::runtime_error("Function calls are executed by the statement interpreter, not the stack VM.");
 }

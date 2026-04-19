@@ -12,6 +12,8 @@ enum class TokenType {
     OpenBrace,
     CloseBrace,
     Semicolon,
+    Colon,
+    Comma,
     Assignment,
     Keyword,
     Unknown

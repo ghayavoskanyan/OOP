@@ -67,9 +67,13 @@ static char comparisonOpChar(const std::string& s) {
 
 void Parser::processToken() {
     switch (currentToken.type) {
-        case TokenType::Number:
-            nodeStack.push(std::make_unique<NumberNode>(std::stod(currentToken.value)));
+        case TokenType::Number: {
+            const std::string& s = currentToken.value;
+            if (s.find('.') != std::string::npos)
+                throw std::runtime_error("Integer literals only (no floating point): " + s);
+            nodeStack.push(std::make_unique<NumberNode>(static_cast<int32_t>(std::stol(s))));
             break;
+        }
         case TokenType::Name:
             nodeStack.push(std::make_unique<VariableNode>(currentToken.value, symbolTable));
             break;

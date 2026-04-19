@@ -9,7 +9,7 @@ size_t SymbolTable::getIndex(const std::string& name) {
     }
     size_t idx = values.size();
     nameToIndex[name] = idx;
-    values.push_back(0.0);
+    values.push_back(0);
     return idx;
 }
 
@@ -21,11 +21,11 @@ void SymbolTable::addSymbol(const std::string& name) {
     if (!hasSymbol(name)) {
         size_t idx = values.size();
         nameToIndex[name] = idx;
-        values.push_back(0.0);
+        values.push_back(0);
     }
 }
 
-bool SymbolTable::getValue(const std::string& name, double& out) const {
+bool SymbolTable::getValue(const std::string& name, int32_t& out) const {
     auto it = nameToIndex.find(name);
     if (it == nameToIndex.end()) return false;
     size_t idx = it->second;
@@ -34,28 +34,24 @@ bool SymbolTable::getValue(const std::string& name, double& out) const {
     return true;
 }
 
-bool SymbolTable::setValue(const std::string& name, double val) {
+bool SymbolTable::setValue(const std::string& name, int32_t val) {
     auto it = nameToIndex.find(name);
     if (it == nameToIndex.end()) return false;
     size_t idx = it->second;
-    if (idx >= values.size()) values.resize(idx + 1, 0.0);
+    if (idx >= values.size()) values.resize(idx + 1, 0);
     values[idx] = val;
     return true;
 }
 
-std::vector<double>& SymbolTable::getValuesVector() {
-    return values;
+std::vector<int32_t>& SymbolTable::getValuesVector() { return values; }
+
+const std::vector<int32_t>& SymbolTable::getValuesVector() const { return values; }
+
+int32_t SymbolTable::getValue(size_t idx) const {
+    return (idx < values.size()) ? values[idx] : 0;
 }
 
-const std::vector<double>& SymbolTable::getValuesVector() const {
-    return values;
-}
-
-double SymbolTable::getValue(size_t idx) const {
-    return (idx < values.size()) ? values[idx] : 0.0;
-}
-
-void SymbolTable::setValue(size_t idx, double val) {
-    if (idx >= values.size()) values.resize(idx + 1, 0.0);
+void SymbolTable::setValue(size_t idx, int32_t val) {
+    if (idx >= values.size()) values.resize(idx + 1, 0);
     values[idx] = val;
 }
