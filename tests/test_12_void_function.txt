@@ -1,0 +1,7 @@
+void show() {
+  print(100);
+}
+int main() {
+  show();
+  return 0;
+}

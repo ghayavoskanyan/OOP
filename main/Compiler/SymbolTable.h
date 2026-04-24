@@ -17,6 +17,7 @@ public:
 
     bool hasSymbol(const std::string& name) const;
     void addSymbol(const std::string& name);
+    void addAlias(const std::string& alias, const std::string& target);
 
     bool getValue(const std::string& name, int32_t& out) const;
     bool setValue(const std::string& name, int32_t val);

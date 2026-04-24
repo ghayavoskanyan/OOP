@@ -3,6 +3,7 @@
 #include "StatementParser.h"
 #include "ICalculator.h"
 #include "SymbolTable.h"
+#include "TypeRegistry.h"
 #include <cstdint>
 #include <memory>
 #include <sstream>
@@ -12,6 +13,7 @@
 class Manager {
 private:
     SymbolTable symbolTable;
+    TypeRegistry typeRegistry;
     std::unique_ptr<Lexer> lexer;
     std::unique_ptr<StatementParser> stmtParser;
     std::unique_ptr<InstructionCalculator> calculator;

@@ -1,132 +1,85 @@
-```markdown
-# Compiler Project – C‑like Language to RISC‑V / VM
+# OOP Compiler Project
 
-This project implements a compiler for a C‑like input language, targeting a custom 32‑bit RISC‑V instruction set and a virtual machine.  
-It supports functions, variables (global/local/static), control flow (`if`, `while`, `for`, `do‑while`, `switch`, `goto`), `struct`/`union`/`enum`, and basic type casts.
+This project is a C-like compiler/interpreter toolchain written in C++.  
+It parses source files, builds AST/IR, can run programs through a logical VM/interpreter path, and also supports an IR-to-RISC-V executable flow for supported subsets.
 
-## 📁 Project Structure (current)
+## What The Project Supports
 
-```
-.
-├── ASTNode.cpp/.h          # Abstract Syntax Tree nodes
+- **Variables**: global, local, static declarations (`int`-only model).
+- **Functions**: `int`/`void`, parameters, calls, return statements, recursion.
+- **Control flow**: `if/else`, `while`, `for`, `do-while`, `switch/case/default`, `break`, `continue`, `goto`, labels.
+- **Types**:
+  - `int` (main runtime type)
+  - `enum` constants
+  - `struct` fields
+  - `union` field overlay behavior
+  - `class` field parsing with `public/private` access sections
+- **Casts**: `(int)expr` and `static_cast<int>(expr)`.
+- **Toolchain modules**: lexer, parser, AST, IR emission, IR file writer, IR-to-RISC-V translator, VM monitor/CPU, linker entrypoint.
 
-├── CompileRegs.cpp/.h      # Register allocation / compilation utilities
+## Main Folders
 
-├── ExeImage.cpp/.h         # Executable image format (header, sections)
+- `main/Compiler` - compiler, parser, VM, linker, executable.
+- `tests` - automated language tests (`test_*.txt`) and test runner script.
+- `tests/multifile` - extra multi-file style examples.
 
-├── ExprParser.cpp/.h       # Expression parsing (used by main parser)
+## Build
 
-├── ICalculator.cpp/.h      # Intermediate calculation / IR generation
+From project root:
 
-├── IrEmit.h                # IR emission helpers
-
-├── IrFile.cpp/.h           # IR file representation
-
-├── IrToRiscv.cpp/.h        # IR → RISC‑V code generator
-
-├── Lexer.cpp/.h            # Lexical analyzer
-
-├── Linker.cpp/.h           # Links multiple object files
-
-├── main.cpp                # Compiler driver
-
-├── Manager.cpp/.h          # Manages compilation units, symbol tables
-
-├── Makefile
-
-├── Parser.cpp/.h           # Top‑down parser for statements
-
-├── RiscvCpu.cpp/.h         # RISC‑V CPU emulator (inside VM)
-
-├── RiscvISA.h              # RISC‑V instruction definitions
-
-├── StatementNode.cpp/.h    # Statement AST nodes
-
-├── StatementParser.cpp/.h  # Parses statements (if, while, etc.)
-
-├── StmtInterpreter.cpp/.h  # Interprets statements (alternative to codegen)
-
-├── SymbolTable.cpp/.h      # Symbol table with scopes
-
-├── Token.cpp/.h            # Token representation
-
-├── Traverser.cpp/.h        # AST traverser (for analysis / optimisation)
-
-├── VM.cpp/.h               # Virtual machine (executes RISC‑V code)
-
-├── VmMonitor.cpp/.h        # VM monitor (debugger, step, breakpoints)
-
-└── example.txt             # Example input program
+```powershell
+cd main\Compiler
+mingw32-make
 ```
 
-## 🚀 Building and Running
+This builds `main/Compiler/calculator.exe`.
 
-### The compiler will:
-- Lex & parse the source
-- Build an AST
-- Generate IR (intermediate representation)
-- Translate IR to RISC‑V assembly / binary
-- Produce an executable image (`ExeImage`)
+## Run One Program Manually
 
-## 📝 Input Language Features
+From project root:
 
-### Variables
-- Global, local, static (inside and outside functions)
-- Only `int` type (no `double`, `char`)
-
-### Functions
-- `int name(int param1, int param2) { ... }`
-- `void` functions (no return value)
-- `return expr;`
-
-### Control Flow
-- `if (cond) { ... } else if (cond) { ... } else { ... }`
-- `while (cond) { ... }`
-- `for (init; cond; step) { ... }`
-- `do { ... } while (cond);`
-- `switch (expr) { case c1: ... break; default: ... }`
-- `goto label;` and `label:`
-
-### Data Types
-- `struct`, `union`, `class` (with public/private members)
-- `enum` (named constants)
-
-### Type Casts
-- `(int)expr` – C‑style cast
-- `static_cast<int>(expr)` (preferred)
-
-## ⚙️ Compiler Phases (as implemented)
-
-1. **Lexer** (`Lexer.cpp`) → token stream
-2. **Parser** (`Parser.cpp`, `StatementParser.cpp`, `ExprParser.cpp`) → AST
-3. **Semantic analysis** (`SymbolTable.cpp`, `Traverser.cpp`) – scope checking, variable resolution
-4. **IR generation** (`ICalculator.cpp`, `IrFile.cpp`, `IrEmit.h`) → three‑address code / custom IR
-5. **IR optimisation** (optional, via `Traverser`)
-6. **Code generation** (`IrToRiscv.cpp`, `CompileRegs.cpp`) → RISC‑V instructions (defined in `RiscvISA.h`)
-7. **Object / Executable image** (`ExeImage.cpp`) – combines code, data, bss into a loadable format
-8. **Linking** (`Linker.cpp`) – merges multiple object files
-9. **Loading** (`ExeImage` → `VM.cpp`) – loads into VM memory
-10. **Execution** (`RiscvCpu.cpp` inside `VM.cpp`) – interprets RISC‑V instructions
-11. **Debugging** (`VmMonitor.cpp`) – step, breakpoints, register/memory inspection
-
-## 🧪 Testing
-
-You can test the compiler like this:
-```bash
-cd main/Compiler
-mingw32-make clean
-mingw32-make 
-mingw32-make run
+```powershell
+.\main\Compiler\calculator.exe .\tests\test_01_global_int.txt
 ```
 
-## 📌 Known Limitations
+## Useful CLI Modes
 
-- Only `int` type – no floating point, no char
-- No lambda functions
-- No dynamic memory allocation (malloc/free) – could be added via syscalls
-- The VM is a pure interpreter; JIT not implemented
+From `main/Compiler`:
+
+```powershell
+.\calculator.exe --help
+.\calculator.exe --emit-ir <input.txt> <out.ir>
+.\calculator.exe --riscv-exe <input.txt> <out.exe>
+.\calculator.exe --link <obj1> <obj2> -o <out.exe>
+```
+
+## Current Limitations
+
+- Runtime is intentionally **int-focused**; no floating-point pipeline.
+- `main(int argc, char* argv[])` style signature is not part of the language grammar.
+- Some advanced linker/object-format features are simplified compared to production C++ toolchains.
 
 ---
 
-**Author:** Gayane Voskanyan
-**Project:** Compiler for C‑like language → RISC‑V / VM
+## How To Test Everything Yourself (Step-by-Step)
+
+1. Open PowerShell in project root:
+   ```powershell
+   cd C:\Users\Gayane\Desktop\OOP
+   ```
+2. Build the compiler:
+   ```powershell
+   cd .\main\Compiler
+   mingw32-make
+   ```
+3. Run the full automated test suite:
+   ```powershell
+   cd ..\..\tests
+   .\run_all_tests.ps1
+   ```
+4. Optional: run one specific test manually:
+   ```powershell
+   ..\main\Compiler\calculator.exe .\test_30_proto_extern.txt
+   ```
+
+If the final line says all tests finished with exit code `0`, your project is passing the full suite.

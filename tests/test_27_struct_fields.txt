@@ -1,0 +1,8 @@
+struct Pair {
+  int x;
+  int y;
+};
+Pair p;
+p.x = 10;
+p.y = 20;
+print(p.x + p.y);

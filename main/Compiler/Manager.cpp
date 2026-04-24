@@ -21,7 +21,7 @@ void Manager::setInput(const std::string& expression) {
 
     auto stream = std::make_unique<std::istringstream>(expression);
     lexer = std::make_unique<Lexer>(*stream);
-    stmtParser = std::make_unique<StatementParser>(*lexer, symbolTable);
+    stmtParser = std::make_unique<StatementParser>(*lexer, symbolTable, typeRegistry);
     ownedStreams.push_back(std::move(stream));
 }
 
@@ -36,7 +36,7 @@ int32_t Manager::evaluate() {
 
     int32_t result = 0;
     if (programNeedsInterpreter(stmt.get())) {
-        StmtInterpreter interp(symbolTable);
+        StmtInterpreter interp(symbolTable, typeRegistry);
         result = interp.run(stmt.get());
     } else {
         std::vector<Instruction> program;
@@ -83,7 +83,7 @@ void Manager::runFile(const std::string& filepath) {
 
     auto stream = std::make_unique<std::istringstream>(code);
     Lexer fileLexer(*stream);
-    StatementParser fileParser(fileLexer, symbolTable);
+    StatementParser fileParser(fileLexer, symbolTable, typeRegistry);
 
     auto stmt = fileParser.parse();
     if (!stmt) {
@@ -92,7 +92,7 @@ void Manager::runFile(const std::string& filepath) {
     }
 
     if (programNeedsInterpreter(stmt.get())) {
-        StmtInterpreter interp(symbolTable);
+        StmtInterpreter interp(symbolTable, typeRegistry);
         interp.run(stmt.get());
     } else {
         std::vector<Instruction> program;
@@ -132,7 +132,7 @@ bool Manager::compileFileToIr(const std::string& sourcePath, const std::string& 
 
     std::istringstream iss(code);
     Lexer lex(iss);
-    StatementParser parser(lex, symbolTable);
+    StatementParser parser(lex, symbolTable, typeRegistry);
     auto stmt = parser.parse();
     if (!stmt) return false;
 
@@ -155,7 +155,7 @@ bool Manager::compileFileToExe(const std::string& sourcePath, const std::string&
 
     std::istringstream iss(code);
     Lexer lex(iss);
-    StatementParser parser(lex, symbolTable);
+    StatementParser parser(lex, symbolTable, typeRegistry);
     auto stmt = parser.parse();
     if (!stmt) return false;
 

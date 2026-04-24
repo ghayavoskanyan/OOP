@@ -1,0 +1,4 @@
+enum Color { RED = 3, GREEN, BLUE };
+print(RED);
+print(GREEN);
+print(BLUE);

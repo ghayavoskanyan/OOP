@@ -1,0 +1,10 @@
+extern int g;
+int add(int a, int b);
+int g = 5;
+int add(int a, int b) {
+  return a + b;
+}
+int main() {
+  print(add(g, 2));
+  return 0;
+}

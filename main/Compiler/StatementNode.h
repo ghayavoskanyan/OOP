@@ -12,6 +12,7 @@ enum class StatementType {
     ExprStatement,
     IfNode,
     WhileNode,
+    DoWhileNode,
     ForNode,
     BlockNode,
     SeqNode,
@@ -20,7 +21,10 @@ enum class StatementType {
     FunctionDef,
     ReturnStmt,
     SwitchStmt,
-    BreakStmt
+    BreakStmt,
+    ContinueStmt,
+    GotoStmt,
+    LabelStmt
 };
 
 class StatementNode {
@@ -116,6 +120,30 @@ public:
     int compile(std::vector<Instruction>& prog) const override;
 };
 
+class ContinueNode : public StatementNode {
+public:
+    ContinueNode();
+    int compile(std::vector<Instruction>& prog) const override;
+};
+
+class GotoNode : public StatementNode {
+    std::string label_;
+
+public:
+    explicit GotoNode(std::string label);
+    int compile(std::vector<Instruction>& prog) const override;
+    const std::string& getLabel() const { return label_; }
+};
+
+class LabelNode : public StatementNode {
+    std::string label_;
+
+public:
+    explicit LabelNode(std::string label);
+    int compile(std::vector<Instruction>& prog) const override;
+    const std::string& getLabel() const { return label_; }
+};
+
 class IfNode : public StatementNode {
     std::unique_ptr<ASTNode> condition;
     std::unique_ptr<StatementNode> thenBody;
@@ -139,6 +167,17 @@ public:
     int compile(std::vector<Instruction>& prog) const override;
     const ASTNode* getCondition() const { return condition.get(); }
     const StatementNode* getBody() const { return body.get(); }
+};
+
+class DoWhileNode : public StatementNode {
+    std::unique_ptr<StatementNode> body;
+    std::unique_ptr<ASTNode> condition;
+
+public:
+    DoWhileNode(std::unique_ptr<StatementNode> b, std::unique_ptr<ASTNode> c);
+    int compile(std::vector<Instruction>& prog) const override;
+    const StatementNode* getBody() const { return body.get(); }
+    const ASTNode* getCondition() const { return condition.get(); }
 };
 
 class ForNode : public StatementNode {

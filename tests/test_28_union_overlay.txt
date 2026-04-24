@@ -1,0 +1,7 @@
+union U {
+  int a;
+  int b;
+};
+U u;
+u.a = 77;
+print(u.b);

@@ -1,0 +1,10 @@
+int add(int a, int b) {
+  return a + b;
+}
+int mul(int a, int b) {
+  return a * b;
+}
+int main() {
+  print(add(3, mul(2, 8)));
+  return 0;
+}

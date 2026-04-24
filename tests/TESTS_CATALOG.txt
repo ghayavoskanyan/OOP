@@ -1,0 +1,93 @@
+================================================================================
+  COMPILER TEST CATALOG  (OOP project — calculator.exe test sources)
+================================================================================
+Run from this folder after building main\Compiler\calculator.exe :
+
+  PowerShell:  .\run_all_tests.ps1
+  Manual:      ..\main\Compiler\calculator.exe test_XX_name.txt
+
+Each test uses print(expr); so you can see results. The program also prints
+"--- Results ---" and the symbol table dump at the end.
+
+--------------------------------------------------------------------------------
+REQUIREMENT CHECKLIST  (map lecturer items → test file)
+--------------------------------------------------------------------------------
+
+Variables
+  Global (file level)                    test_01_global_int.txt
+  Local (inside block / function)      test_04_while.txt, test_11_functions_main.txt
+  static at file scope                 test_02_static_global.txt
+  global retention between calls       test_21_global_counter_across_calls.txt
+
+Data types (int-only in this toolchain)
+  int                                  (all tests)
+  enum / union / struct / class        NOT COVERED BY RUNNABLE .txt YET — add when parser supports
+
+Functions
+  int / void, parameters, return       test_11_functions_main.txt, test_12_void_function.txt
+  main entry                             test_11_functions_main.txt
+  Prototypes / extern / multi-file       See MULTIFILE_HOWTO.txt (workflow); not one-shot with current driver
+
+Control flow
+  if / else if / else                  test_03_if_else.txt, test_15_nested_if.txt
+  while                                 test_04_while.txt
+  for                                   test_05_for.txt
+  do-while                              NOT IN PARSER YET — no test_ file (add future_do_while.txt when implemented)
+  switch / case / default / break       test_06_switch_break_default.txt
+  goto / labels                         NOT IN PARSER YET
+  break / continue in loops             break: test_06; continue: NOT YET
+  Blocks { }                            test_15_nested_if.txt
+
+Casts
+  static_cast<int>(expr)                test_13_static_cast.txt
+  (int) expr                            test_14_c_style_cast.txt
+
+Expressions
+  Arithmetic + - * / %                  test_08_arithmetic.txt
+  Comparisons == != < > <= >=           test_07_comparisons.txt
+  Unary -                               test_09_unary_minus.txt
+  Calls                                  test_11_functions_main.txt, test_20_recursion_factorial.txt
+
+Multi-file
+  Separate sources + link                tests\multifile\README_MULTIFILE.txt
+  Same logic as two TUs (single file)    test_22_multifile_combined_logic.txt
+  Standalone "lib+main" style          tests\multifile\unit_main_calls_math.txt
+  Library-only source (no main)        tests\multifile\unit_math_only.txt  (not runnable alone)
+
+--------------------------------------------------------------------------------
+EXPECTED OUTPUT SUMMARY  (printed lines only, before "--- Results ---")
+--------------------------------------------------------------------------------
+
+test_01_global_int.txt               →  42
+test_02_static_global.txt            →  7
+test_03_if_else.txt                 →  100 then 200  (two if statements)
+test_04_while.txt                   →  0, 1, 2
+test_05_for.txt                     →  6   (0+1+2+3)
+test_06_switch_break_default.txt    →  20
+test_07_comparisons.txt             →  1, 0, 1, 1, 1, 1  (six lines)
+test_08_arithmetic.txt              →  14, 2, 6, 1
+test_09_unary_minus.txt             →  -5, 5
+test_10_print_expressions.txt       →  30, 2
+test_11_functions_main.txt          →  7
+test_12_void_function.txt           →  100
+test_13_static_cast.txt             →  9
+test_14_c_style_cast.txt            →  42
+test_15_nested_if.txt               →  3
+test_16_else_if_chain.txt           →  2
+test_17_assignment_expr.txt         →  5
+test_18_logical_combo.txt           →  1
+test_19_switch_default_only.txt     →  500
+test_20_recursion_factorial.txt     →  120
+test_21_global_counter_across_calls.txt →  1, 2, 3
+test_22_multifile_combined_logic.txt  →  19  (add(3, mul(2,8)))
+
+Adjust if your interpreter changes. If a test throws, note it in your report and fix the compiler.
+
+--------------------------------------------------------------------------------
+NOTES
+--------------------------------------------------------------------------------
+- main(int argc, char* argv[]) is not supported by the current grammar (parameters are int-only).
+- Floating point and char types are intentionally absent.
+- For full pipeline (IR file, RISC-V exe, linker), use flags from calculator.exe --help (see main.cpp).
+
+================================================================================

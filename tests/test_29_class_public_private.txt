@@ -1,0 +1,9 @@
+class Box {
+private:
+  int hidden;
+public:
+  int shown;
+};
+Box b;
+b.shown = 6;
+print(b.shown);

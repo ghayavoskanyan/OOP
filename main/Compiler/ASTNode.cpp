@@ -126,6 +126,15 @@ int AssignmentNode::compile(std::vector<Instruction>& prog) const {
     return exprReg;
 }
 
+CastNode::CastNode(std::unique_ptr<ASTNode> e) : inner(std::move(e)) {
+    type = NodeType::CastNode;
+}
+
+int CastNode::compile(std::vector<Instruction>& prog) const {
+    if (!inner) return 0;
+    return inner->compile(prog);
+}
+
 CallNode::CallNode(std::string name, std::vector<std::unique_ptr<ASTNode>> a, SymbolTable& sym)
     : funcName(std::move(name)), args(std::move(a)), symbolTable(sym) {
     type = NodeType::CallNode;

@@ -14,6 +14,7 @@ enum class TokenType {
     Semicolon,
     Colon,
     Comma,
+    Dot,
     Assignment,
     Keyword,
     Unknown

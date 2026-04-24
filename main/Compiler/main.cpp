@@ -8,6 +8,7 @@
 #include "StmtInterpreter.h"
 #include "VM.h"
 #include "Linker.h"
+#include "TypeRegistry.h"
 
 static void printHelp() {
     std::cout << "\n";
@@ -24,6 +25,7 @@ static void printHelp() {
 
 int main(int argc, char* argv[]) {
     Manager manager;
+    TypeRegistry replTypes;
 
     if (argc >= 2) {
         std::string a1 = argv[1];
@@ -134,14 +136,14 @@ int main(int argc, char* argv[]) {
         try {
             std::istringstream iss(input);
             Lexer lexer(iss);
-            StatementParser parser(lexer, manager.getSymbolTable());
+            StatementParser parser(lexer, manager.getSymbolTable(), replTypes);
 
             auto stmt = parser.parse();
             if (!stmt) continue;
 
             int32_t result = 0;
             if (programNeedsInterpreter(stmt.get())) {
-                StmtInterpreter interp(manager.getSymbolTable());
+                StmtInterpreter interp(manager.getSymbolTable(), replTypes);
                 result = interp.run(stmt.get());
             } else {
                 std::vector<Instruction> prog;

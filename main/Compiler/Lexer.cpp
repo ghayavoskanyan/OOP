@@ -1,7 +1,7 @@
 #include "Lexer.h"
 #include <cctype>
 
-Lexer::Lexer(std::istream& is) : input(is), currentState(LexerState::Start), line(1), column(0), hasPendingToken(false) {
+Lexer::Lexer(std::istream& is) : input(is), currentState(LexerState::Start), line(1), column(0) {
     initializeTransitionMatrix();
     initializeKeywords();
 }
@@ -10,9 +10,17 @@ void Lexer::initializeKeywords() {
     keywords["if"]       = TokenType::Keyword;
     keywords["else"]   = TokenType::Keyword;
     keywords["while"]  = TokenType::Keyword;
+    keywords["do"]     = TokenType::Keyword;
     keywords["for"]    = TokenType::Keyword;
     keywords["print"]  = TokenType::Keyword;
     keywords["int"]    = TokenType::Keyword;
+    keywords["enum"]   = TokenType::Keyword;
+    keywords["struct"] = TokenType::Keyword;
+    keywords["union"]  = TokenType::Keyword;
+    keywords["class"]  = TokenType::Keyword;
+    keywords["public"] = TokenType::Keyword;
+    keywords["private"] = TokenType::Keyword;
+    keywords["extern"] = TokenType::Keyword;
     keywords["var"]    = TokenType::Keyword;
     keywords["static"] = TokenType::Keyword;
     keywords["return"] = TokenType::Keyword;
@@ -21,6 +29,9 @@ void Lexer::initializeKeywords() {
     keywords["default"] = TokenType::Keyword;
     keywords["void"]   = TokenType::Keyword;
     keywords["break"]  = TokenType::Keyword;
+    keywords["continue"] = TokenType::Keyword;
+    keywords["goto"]   = TokenType::Keyword;
+    keywords["static_cast"] = TokenType::Keyword;
 }
 
 void Lexer::initializeTransitionMatrix() {
@@ -58,21 +69,21 @@ Lexer::CharType Lexer::getCharType(char c) {
 }
 
 void Lexer::pushBack(const Token& token) {
-    pendingToken = token;
-    hasPendingToken = true;
+    pendingTokens.push_back(token);
 }
 
 void Lexer::reset() {
     currentState = LexerState::Start;
-    hasPendingToken = false;
+    pendingTokens.clear();
     currentToken.clear();
     // Do not reset line/column because they are for error reporting only
 }
 
 Token Lexer::getNextToken() {
-    if (hasPendingToken) {
-        hasPendingToken = false;
-        return pendingToken;
+    if (!pendingTokens.empty()) {
+        Token t = pendingTokens.back();
+        pendingTokens.pop_back();
+        return t;
     }
 
     currentToken.clear();
@@ -87,7 +98,9 @@ Token Lexer::getNextToken() {
 
         if (currentState == LexerState::Start && ct == CharType::Whitespace) continue;
 
-        if (currentState == LexerState::Start && currentToken.empty() && (c == ':' || c == ',')) {
+        if (currentState == LexerState::Start && currentToken.empty() && (c == ':' || c == ',' || c == '.')) {
+            if (c == '.')
+                return Token(TokenType::Dot, ".", line, column);
             return Token(c == ':' ? TokenType::Colon : TokenType::Comma, std::string(1, c), line, column);
         }
 

@@ -187,3 +187,34 @@ int BreakNode::compile(std::vector<Instruction>& prog) const {
     (void)prog;
     throw std::runtime_error("break is handled by the statement interpreter");
 }
+
+ContinueNode::ContinueNode() { type = StatementType::ContinueStmt; }
+
+int ContinueNode::compile(std::vector<Instruction>& prog) const {
+    (void)prog;
+    throw std::runtime_error("continue is handled by the statement interpreter");
+}
+
+GotoNode::GotoNode(std::string label) : label_(std::move(label)) { type = StatementType::GotoStmt; }
+
+int GotoNode::compile(std::vector<Instruction>& prog) const {
+    (void)prog;
+    throw std::runtime_error("goto is handled by the statement interpreter");
+}
+
+LabelNode::LabelNode(std::string label) : label_(std::move(label)) { type = StatementType::LabelStmt; }
+
+int LabelNode::compile(std::vector<Instruction>& prog) const {
+    (void)prog;
+    return 0;
+}
+
+DoWhileNode::DoWhileNode(std::unique_ptr<StatementNode> b, std::unique_ptr<ASTNode> c)
+    : body(std::move(b)), condition(std::move(c)) {
+    type = StatementType::DoWhileNode;
+}
+
+int DoWhileNode::compile(std::vector<Instruction>& prog) const {
+    (void)prog;
+    throw std::runtime_error("do-while is handled by the statement interpreter");
+}

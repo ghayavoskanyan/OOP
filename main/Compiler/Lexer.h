@@ -3,6 +3,7 @@
 #include <string>
 #include <istream>
 #include <unordered_map>
+#include <vector>
 
 enum class LexerState { Start, InNumber, InDecimal, InName, InOperator };
 
@@ -15,8 +16,7 @@ private:
     int column;
     std::unordered_map<std::string, TokenType> keywords;
 
-    Token pendingToken;
-    bool hasPendingToken;
+    std::vector<Token> pendingTokens;
 
     static const int STATE_COUNT = 5;
     static const int CHAR_TYPE_COUNT = 9;

@@ -1,0 +1,9 @@
+int p;
+int q;
+p = 1;
+q = 0;
+if (p == 1) {
+  if (q == 0) {
+    print(1);
+  }
+}

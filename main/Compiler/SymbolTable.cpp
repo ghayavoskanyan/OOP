@@ -25,6 +25,12 @@ void SymbolTable::addSymbol(const std::string& name) {
     }
 }
 
+void SymbolTable::addAlias(const std::string& alias, const std::string& target) {
+    auto it = nameToIndex.find(target);
+    if (it == nameToIndex.end()) return;
+    nameToIndex[alias] = it->second;
+}
+
 bool SymbolTable::getValue(const std::string& name, int32_t& out) const {
     auto it = nameToIndex.find(name);
     if (it == nameToIndex.end()) return false;

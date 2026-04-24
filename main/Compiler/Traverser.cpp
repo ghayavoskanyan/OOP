@@ -27,6 +27,17 @@ void Traverser::traverse(const ASTNode* node, std::function<void(const ASTNode*)
                     if (a->getExpression()) stk.push({a->getExpression().get(), 0});
                     break;
                 }
+                case NodeType::CastNode: {
+                    auto* c = static_cast<const CastNode*>(current);
+                    if (c->getInner()) stk.push({c->getInner(), 0});
+                    break;
+                }
+                case NodeType::CallNode: {
+                    auto* call = static_cast<const CallNode*>(current);
+                    for (auto it = call->getArgs().rbegin(); it != call->getArgs().rend(); ++it)
+                        if (it->get()) stk.push({it->get(), 0});
+                    break;
+                }
                 default: break;
             }
         } else {
@@ -58,6 +69,17 @@ void Traverser::traversePreOrder(const ASTNode* node, std::function<void(const A
             case NodeType::AssignmentNode: {
                 auto* a = static_cast<const AssignmentNode*>(current);
                 if (a->getExpression()) stk.push(a->getExpression().get());
+                break;
+            }
+            case NodeType::CastNode: {
+                auto* c = static_cast<const CastNode*>(current);
+                if (c->getInner()) stk.push(c->getInner());
+                break;
+            }
+            case NodeType::CallNode: {
+                auto* call = static_cast<const CallNode*>(current);
+                for (const auto& arg : call->getArgs())
+                    if (arg) stk.push(arg.get());
                 break;
             }
             default: break;

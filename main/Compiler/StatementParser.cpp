@@ -3,10 +3,11 @@
 #include <sstream>
 #include <stdexcept>
 
-StatementParser::StatementParser(Lexer& lex, SymbolTable& symTable) : lexer(lex), symbolTable(symTable) {}
+StatementParser::StatementParser(Lexer& lex, SymbolTable& symTable, TypeRegistry& types)
+    : lexer(lex), symbolTable(symTable), typeRegistry(types) {}
 
 std::unique_ptr<ASTNode> StatementParser::parseExpression(bool stopAtCloseParen) {
-    return expr_parser::parseExpression(lexer, symbolTable, stopAtCloseParen);
+    return expr_parser::parseExpression(lexer, symbolTable, typeRegistry, stopAtCloseParen);
 }
 
 std::unique_ptr<StatementNode> StatementParser::parseDeclaration(bool isStatic) {
@@ -72,6 +73,10 @@ std::unique_ptr<StatementNode> StatementParser::parseFunctionDefinition(bool voi
     }
 
     Token ob = lexer.getNextToken();
+    if (ob.type == TokenType::Semicolon) {
+        // Prototype declaration: keep signature but no body.
+        return std::make_unique<FunctionDefNode>(name, voidReturn, std::move(params), std::make_unique<SeqNode>());
+    }
     if (ob.type != TokenType::OpenBrace) throw std::runtime_error("Expected '{' before function body");
 
     auto body = parseBlock();
@@ -159,6 +164,106 @@ std::unique_ptr<StatementNode> StatementParser::parseBreakStatement() {
     return std::make_unique<BreakNode>();
 }
 
+std::unique_ptr<StatementNode> StatementParser::parseContinueStatement() {
+    Token semi = lexer.getNextToken();
+    if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after continue");
+    return std::make_unique<ContinueNode>();
+}
+
+std::unique_ptr<StatementNode> StatementParser::parseGotoStatement() {
+    Token label = lexer.getNextToken();
+    if (label.type != TokenType::Name) throw std::runtime_error("Expected label name after goto");
+    Token semi = lexer.getNextToken();
+    if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after goto label");
+    return std::make_unique<GotoNode>(label.value);
+}
+
+std::unique_ptr<StatementNode> StatementParser::parseEnumDefinition() {
+    Token enumName = lexer.getNextToken();
+    if (enumName.type != TokenType::Name) throw std::runtime_error("Expected enum name");
+    Token ob = lexer.getNextToken();
+    if (ob.type != TokenType::OpenBrace) throw std::runtime_error("Expected '{' after enum name");
+    int32_t cur = 0;
+    while (true) {
+        Token n = lexer.getNextToken();
+        if (n.type == TokenType::CloseBrace) break;
+        if (n.type != TokenType::Name) throw std::runtime_error("Expected enumerator name");
+        Token nx = lexer.getNextToken();
+        if (nx.type == TokenType::Assignment) {
+            Token v = lexer.getNextToken();
+            if (v.type != TokenType::Number) throw std::runtime_error("Expected integer after '=' in enum");
+            cur = static_cast<int32_t>(std::stol(v.value));
+            nx = lexer.getNextToken();
+        }
+        typeRegistry.addEnumConst(n.value, cur);
+        if (!symbolTable.hasSymbol(n.value)) symbolTable.addSymbol(n.value);
+        symbolTable.setValue(n.value, cur);
+        ++cur;
+        if (nx.type == TokenType::CloseBrace) break;
+        if (nx.type != TokenType::Comma) throw std::runtime_error("Expected ',' or '}' in enum");
+    }
+    Token semi = lexer.getNextToken();
+    if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after enum definition");
+    return std::make_unique<SeqNode>();
+}
+
+std::unique_ptr<StatementNode> StatementParser::parseAggregateDefinition(AggregateKind kind) {
+    Token tname = lexer.getNextToken();
+    if (tname.type != TokenType::Name) throw std::runtime_error("Expected type name");
+    Token ob = lexer.getNextToken();
+    if (ob.type != TokenType::OpenBrace) throw std::runtime_error("Expected '{' after type name");
+    std::vector<FieldInfo> fields;
+    bool isPublic = (kind != AggregateKind::Class);
+    while (true) {
+        Token t = lexer.getNextToken();
+        if (t.type == TokenType::CloseBrace) break;
+        if (kind == AggregateKind::Class && t.type == TokenType::Keyword && (t.value == "public" || t.value == "private")) {
+            Token col = lexer.getNextToken();
+            if (col.type != TokenType::Colon) throw std::runtime_error("Expected ':' after access modifier");
+            isPublic = (t.value == "public");
+            continue;
+        }
+        if (!(t.type == TokenType::Keyword && t.value == "int")) throw std::runtime_error("Only int fields are supported");
+        Token fname = lexer.getNextToken();
+        if (fname.type != TokenType::Name) throw std::runtime_error("Expected field name");
+        Token semi = lexer.getNextToken();
+        if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after field");
+        fields.push_back(FieldInfo{fname.value, 0, isPublic});
+    }
+    Token semi = lexer.getNextToken();
+    if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after type definition");
+    typeRegistry.addAggregate(tname.value, kind, std::move(fields));
+    return std::make_unique<SeqNode>();
+}
+
+std::unique_ptr<StatementNode> StatementParser::parseAggregateInstanceDeclaration(const std::string& typeName) {
+    Token name = lexer.getNextToken();
+    if (name.type != TokenType::Name) throw std::runtime_error("Expected variable name for aggregate instance");
+    Token semi = lexer.getNextToken();
+    if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after aggregate declaration");
+    const AggregateType* t = typeRegistry.findAggregate(typeName);
+    if (!t) throw std::runtime_error("Unknown aggregate type: " + typeName);
+    typeRegistry.declareInstance(name.value, typeName);
+    auto seq = std::make_unique<SeqNode>();
+    std::string firstFieldName;
+    bool first = true;
+    for (const auto& f : t->fields) {
+        std::string full = name.value + "." + f.name;
+        if (first) {
+            seq->addStatement(std::make_unique<DeclNode>(full, nullptr, symbolTable, false));
+            firstFieldName = full;
+            first = false;
+            continue;
+        }
+        if (t->kind == AggregateKind::Union) {
+            symbolTable.addAlias(full, firstFieldName);
+        } else {
+            seq->addStatement(std::make_unique<DeclNode>(full, nullptr, symbolTable, false));
+        }
+    }
+    return seq;
+}
+
 std::unique_ptr<StatementNode> StatementParser::parseBlock() {
     auto block = std::make_unique<BlockNode>();
     while (true) {
@@ -172,6 +277,8 @@ std::unique_ptr<StatementNode> StatementParser::parseBlock() {
                 block->addStatement(parseIfStatement());
             } else if (t.value == "while") {
                 block->addStatement(parseWhileStatement());
+            } else if (t.value == "do") {
+                block->addStatement(parseDoWhileStatement());
             } else if (t.value == "for") {
                 block->addStatement(parseForStatement());
             } else if (t.value == "print") {
@@ -195,11 +302,46 @@ std::unique_ptr<StatementNode> StatementParser::parseBlock() {
                 block->addStatement(parseSwitchStatement());
             } else if (t.value == "break") {
                 block->addStatement(parseBreakStatement());
+            } else if (t.value == "continue") {
+                block->addStatement(parseContinueStatement());
+            } else if (t.value == "goto") {
+                block->addStatement(parseGotoStatement());
+            } else if (t.value == "enum") {
+                block->addStatement(parseEnumDefinition());
+            } else if (t.value == "struct") {
+                block->addStatement(parseAggregateDefinition(AggregateKind::Struct));
+            } else if (t.value == "union") {
+                block->addStatement(parseAggregateDefinition(AggregateKind::Union));
+            } else if (t.value == "class") {
+                block->addStatement(parseAggregateDefinition(AggregateKind::Class));
+            } else if (t.value == "extern") {
+                Token it = lexer.getNextToken();
+                if (!(it.type == TokenType::Keyword && it.value == "int")) throw std::runtime_error("Only extern int is supported");
+                Token nm = lexer.getNextToken();
+                if (nm.type != TokenType::Name) throw std::runtime_error("Expected name in extern declaration");
+                Token semi = lexer.getNextToken();
+                if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after extern declaration");
+                if (!symbolTable.hasSymbol(nm.value)) symbolTable.addSymbol(nm.value);
+                block->addStatement(std::make_unique<SeqNode>());
             } else {
                 throw std::runtime_error("Unexpected keyword in block: '" + t.value + "'");
             }
         } else if (t.type == TokenType::Name || t.type == TokenType::Number || t.type == TokenType::Operator ||
                    t.type == TokenType::OpenParen) {
+            if (t.type == TokenType::Name) {
+                Token la = lexer.getNextToken();
+                if (la.type == TokenType::Colon) {
+                    block->addStatement(std::make_unique<LabelNode>(t.value));
+                    continue;
+                }
+                lexer.pushBack(la);
+                if (typeRegistry.findAggregate(t.value) != nullptr) {
+                    lexer.pushBack(t);
+                    Token typeTok = lexer.getNextToken();
+                    block->addStatement(parseAggregateInstanceDeclaration(typeTok.value));
+                    continue;
+                }
+            }
             lexer.pushBack(t);
             auto expr = parseExpression(false);
             Token semi = lexer.getNextToken();
@@ -237,7 +379,6 @@ std::unique_ptr<StatementNode> StatementParser::parseIfStatement() {
         if (afterElse.type == TokenType::OpenBrace) {
             elseBody = parseBlock();
         } else if (afterElse.type == TokenType::Keyword && afterElse.value == "if") {
-            lexer.pushBack(afterElse);
             elseBody = parseIfStatement();
         } else {
             throw std::runtime_error("Expected '{' or 'if' after else");
@@ -263,6 +404,26 @@ std::unique_ptr<StatementNode> StatementParser::parseWhileStatement() {
 
     auto body = parseBlock();
     return std::make_unique<WhileNode>(std::move(condition), std::move(body));
+}
+
+std::unique_ptr<StatementNode> StatementParser::parseDoWhileStatement() {
+    Token ob = lexer.getNextToken();
+    if (ob.type != TokenType::OpenBrace) throw std::runtime_error("Expected '{' after do");
+    auto body = parseBlock();
+
+    Token kw = lexer.getNextToken();
+    if (kw.type != TokenType::Keyword || kw.value != "while")
+        throw std::runtime_error("Expected while(...) after do block");
+
+    Token op = lexer.getNextToken();
+    if (op.type != TokenType::OpenParen) throw std::runtime_error("Expected '(' after while in do-while");
+    auto condition = parseExpression(true);
+    Token cp = lexer.getNextToken();
+    if (cp.type != TokenType::CloseParen) throw std::runtime_error("Expected ')' after do-while condition");
+    Token semi = lexer.getNextToken();
+    if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after do-while");
+
+    return std::make_unique<DoWhileNode>(std::move(body), std::move(condition));
 }
 
 std::unique_ptr<StatementNode> StatementParser::parseForStatement() {
@@ -310,6 +471,7 @@ std::unique_ptr<StatementNode> StatementParser::parseStatement() {
     if (t.type == TokenType::Keyword) {
         if (t.value == "if") return parseIfStatement();
         if (t.value == "while") return parseWhileStatement();
+        if (t.value == "do") return parseDoWhileStatement();
         if (t.value == "for") return parseForStatement();
         if (t.value == "print") return parsePrintStatement();
         if (t.value == "static") {
@@ -328,10 +490,36 @@ std::unique_ptr<StatementNode> StatementParser::parseStatement() {
         if (t.value == "return") return parseReturnStatement();
         if (t.value == "switch") return parseSwitchStatement();
         if (t.value == "break") return parseBreakStatement();
+        if (t.value == "continue") return parseContinueStatement();
+        if (t.value == "goto") return parseGotoStatement();
+        if (t.value == "enum") return parseEnumDefinition();
+        if (t.value == "struct") return parseAggregateDefinition(AggregateKind::Struct);
+        if (t.value == "union") return parseAggregateDefinition(AggregateKind::Union);
+        if (t.value == "class") return parseAggregateDefinition(AggregateKind::Class);
+        if (t.value == "extern") {
+            Token it = lexer.getNextToken();
+            if (!(it.type == TokenType::Keyword && it.value == "int")) throw std::runtime_error("Only extern int is supported");
+            Token nm = lexer.getNextToken();
+            if (nm.type != TokenType::Name) throw std::runtime_error("Expected name in extern declaration");
+            Token semi = lexer.getNextToken();
+            if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after extern declaration");
+            if (!symbolTable.hasSymbol(nm.value)) symbolTable.addSymbol(nm.value);
+            return std::make_unique<SeqNode>();
+        }
     }
 
     if (t.type == TokenType::Name || t.type == TokenType::Number || t.type == TokenType::Operator ||
         t.type == TokenType::OpenParen) {
+        if (t.type == TokenType::Name) {
+            Token la = lexer.getNextToken();
+            if (la.type == TokenType::Colon) return std::make_unique<LabelNode>(t.value);
+            lexer.pushBack(la);
+            if (typeRegistry.findAggregate(t.value) != nullptr) {
+                lexer.pushBack(t);
+                Token typeTok = lexer.getNextToken();
+                return parseAggregateInstanceDeclaration(typeTok.value);
+            }
+        }
         lexer.pushBack(t);
         auto expr = parseExpression(false);
         Token semi = lexer.getNextToken();

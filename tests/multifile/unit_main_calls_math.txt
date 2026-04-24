@@ -1,0 +1,7 @@
+int triple(int x) {
+  return x * 3;
+}
+int main() {
+  print(triple(4));
+  return 0;
+}

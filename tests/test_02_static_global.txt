@@ -1,0 +1,2 @@
+static int s = 7;
+print(s);
