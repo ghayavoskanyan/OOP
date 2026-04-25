@@ -76,7 +76,6 @@ void Lexer::reset() {
     currentState = LexerState::Start;
     pendingTokens.clear();
     currentToken.clear();
-    // Do not reset line/column because they are for error reporting only
 }
 
 Token Lexer::getNextToken() {

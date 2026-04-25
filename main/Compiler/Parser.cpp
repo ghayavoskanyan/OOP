@@ -2,8 +2,7 @@
 #include "Lexer.h"
 #include <stdexcept>
 
-Parser::Parser(Lexer& lex, SymbolTable& symTable)
-    : lexer(lex), symbolTable(symTable), currentState(ParserState::Start) {
+Parser::Parser(Lexer& lex, SymbolTable& symTable) : lexer(lex), symbolTable(symTable), currentState(ParserState::Start) {
     initializeTransitionMatrix();
 }
 
@@ -167,7 +166,6 @@ std::unique_ptr<ASTNode> Parser::parse(bool stopAtCloseParen) {
                 lexer.pushBack(token);
                 break;
             }
-            // normal handling inside parentheses
             int tidx = getTokenTypeIndex(token.type);
             if (currentState == ParserState::Start) break;
             currentToken = token;

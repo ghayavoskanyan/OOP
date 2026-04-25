@@ -84,7 +84,7 @@ void patchBrs(std::vector<uint32_t>& code, const std::vector<size_t>& irStart, c
     }
 }
 
-} // namespace
+} 
 
 unsigned ir_to_riscv::computeMaxVReg(const std::vector<Instruction>& program) {
     unsigned m = 0;

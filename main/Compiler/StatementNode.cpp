@@ -25,8 +25,7 @@ int PrintNode::compile(std::vector<Instruction>& prog) const {
     return reg;
 }
 
-DeclNode::DeclNode(const std::string& name, std::unique_ptr<ASTNode> init, SymbolTable& sym, bool isStatic)
-    : varName(name), symbolTable(sym), isStatic_(isStatic) {
+DeclNode::DeclNode(const std::string& name, std::unique_ptr<ASTNode> init, SymbolTable& sym, bool isStatic) : varName(name), symbolTable(sym), isStatic_(isStatic) {
     initializer = std::move(init);
     type = StatementType::DeclNode;
     if (!symbolTable.hasSymbol(name))
@@ -46,8 +45,7 @@ int DeclNode::compile(std::vector<Instruction>& prog) const {
     return reg;
 }
 
-IfNode::IfNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<StatementNode> thenStmt,
-               std::unique_ptr<StatementNode> elseStmt) {
+IfNode::IfNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<StatementNode> thenStmt, std::unique_ptr<StatementNode> elseStmt) {
     condition = std::move(cond);
     thenBody  = std::move(thenStmt);
     elseBody  = std::move(elseStmt);
@@ -96,8 +94,7 @@ int WhileNode::compile(std::vector<Instruction>& prog) const {
     return 0;
 }
 
-ForNode::ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<ASTNode> c,
-                 std::unique_ptr<ASTNode> u, std::unique_ptr<StatementNode> b) {
+ForNode::ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<ASTNode> c, std::unique_ptr<ASTNode> u, std::unique_ptr<StatementNode> b) {
     init = std::move(i);
     condition = std::move(c);
     update = std::move(u);
@@ -151,9 +148,7 @@ void SeqNode::addStatement(std::unique_ptr<StatementNode> stmt) {
     statements.push_back(std::move(stmt));
 }
 
-FunctionDefNode::FunctionDefNode(std::string n, bool voidRet, std::vector<std::pair<std::string, std::string>> p,
-                                 std::unique_ptr<StatementNode> b)
-    : name(std::move(n)), returnVoid_(voidRet), params(std::move(p)), body(std::move(b)) {
+FunctionDefNode::FunctionDefNode(std::string n, bool voidRet, std::vector<std::pair<std::string, std::string>> p, std::unique_ptr<StatementNode> b) : name(std::move(n)), returnVoid_(voidRet), params(std::move(p)), body(std::move(b)) {
     type = StatementType::FunctionDef;
 }
 
@@ -171,8 +166,7 @@ int ReturnNode::compile(std::vector<Instruction>& prog) const {
     throw std::runtime_error("return is handled by the statement interpreter");
 }
 
-SwitchNode::SwitchNode(std::unique_ptr<ASTNode> disc, std::vector<SwitchArm> a)
-    : discriminant(std::move(disc)), arms(std::move(a)) {
+SwitchNode::SwitchNode(std::unique_ptr<ASTNode> disc, std::vector<SwitchArm> a) : discriminant(std::move(disc)), arms(std::move(a)) {
     type = StatementType::SwitchStmt;
 }
 
@@ -209,8 +203,7 @@ int LabelNode::compile(std::vector<Instruction>& prog) const {
     return 0;
 }
 
-DoWhileNode::DoWhileNode(std::unique_ptr<StatementNode> b, std::unique_ptr<ASTNode> c)
-    : body(std::move(b)), condition(std::move(c)) {
+DoWhileNode::DoWhileNode(std::unique_ptr<StatementNode> b, std::unique_ptr<ASTNode> c) : body(std::move(b)), condition(std::move(c)) {
     type = StatementType::DoWhileNode;
 }
 

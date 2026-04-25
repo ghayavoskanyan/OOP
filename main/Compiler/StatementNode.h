@@ -75,8 +75,7 @@ class FunctionDefNode : public StatementNode {
     std::unique_ptr<StatementNode> body;
 
 public:
-    FunctionDefNode(std::string n, bool voidRet, std::vector<std::pair<std::string, std::string>> p,
-                    std::unique_ptr<StatementNode> b);
+    FunctionDefNode(std::string n, bool voidRet, std::vector<std::pair<std::string, std::string>> p, std::unique_ptr<StatementNode> b);
     int compile(std::vector<Instruction>& prog) const override;
     const std::string& getName() const { return name; }
     bool isVoid() const { return returnVoid_; }
@@ -150,8 +149,7 @@ class IfNode : public StatementNode {
     std::unique_ptr<StatementNode> elseBody;
 
 public:
-    IfNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<StatementNode> thenStmt,
-           std::unique_ptr<StatementNode> elseStmt);
+    IfNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<StatementNode> thenStmt, std::unique_ptr<StatementNode> elseStmt);
     int compile(std::vector<Instruction>& prog) const override;
     const ASTNode* getCondition() const { return condition.get(); }
     const StatementNode* getThen() const { return thenBody.get(); }
@@ -187,8 +185,7 @@ class ForNode : public StatementNode {
     std::unique_ptr<StatementNode> body;
 
 public:
-    ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<ASTNode> c, std::unique_ptr<ASTNode> u,
-            std::unique_ptr<StatementNode> b);
+    ForNode(std::unique_ptr<ASTNode> i, std::unique_ptr<ASTNode> c, std::unique_ptr<ASTNode> u, std::unique_ptr<StatementNode> b);
     int compile(std::vector<Instruction>& prog) const override;
     const ASTNode* getInit() const { return init.get(); }
     const ASTNode* getCondition() const { return condition.get(); }

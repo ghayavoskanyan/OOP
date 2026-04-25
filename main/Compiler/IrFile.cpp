@@ -16,7 +16,7 @@ bool readU32(std::istream& i, uint32_t& v) {
     return (bool)i;
 }
 
-} // namespace
+}
 
 bool writeIrFile(const std::string& path, const std::vector<Instruction>& program) {
     std::ofstream f(path, std::ios::binary);

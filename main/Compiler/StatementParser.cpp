@@ -3,8 +3,7 @@
 #include <sstream>
 #include <stdexcept>
 
-StatementParser::StatementParser(Lexer& lex, SymbolTable& symTable, TypeRegistry& types)
-    : lexer(lex), symbolTable(symTable), typeRegistry(types) {}
+StatementParser::StatementParser(Lexer& lex, SymbolTable& symTable, TypeRegistry& types) : lexer(lex), symbolTable(symTable), typeRegistry(types) {}
 
 std::unique_ptr<ASTNode> StatementParser::parseExpression(bool stopAtCloseParen) {
     return expr_parser::parseExpression(lexer, symbolTable, typeRegistry, stopAtCloseParen);

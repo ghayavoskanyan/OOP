@@ -84,7 +84,7 @@ CpuStatus RiscvCpu::step() {
     uint32_t nextPc = pc_ + 4;
 
     switch (opcode) {
-        case 0x33: { // OP
+        case 0x33: { 
             int32_t v1 = getReg(rs1);
             int32_t v2 = getReg(rs2);
             uint32_t u1 = (uint32_t)v1;
@@ -124,7 +124,7 @@ CpuStatus RiscvCpu::step() {
             setReg(rd, out);
             break;
         }
-        case 0x13: { // OP-IMM
+        case 0x13: { 
             int32_t v1 = getReg(rs1);
             int32_t imm = immI();
             if (funct3 == 0) setReg(rd, v1 + imm);
@@ -139,7 +139,7 @@ CpuStatus RiscvCpu::step() {
             }
             break;
         }
-        case 0x03: { // LOAD
+        case 0x03: { 
             int32_t base = getReg(rs1);
             int32_t addr = base + immI();
             if (funct3 == 2) {
@@ -155,7 +155,7 @@ CpuStatus RiscvCpu::step() {
             }
             break;
         }
-        case 0x23: { // STORE
+        case 0x23: { 
             int32_t base = getReg(rs1);
             int32_t addr = base + immS();
             int32_t val = getReg(rs2);
@@ -172,7 +172,7 @@ CpuStatus RiscvCpu::step() {
             }
             break;
         }
-        case 0x63: { // BRANCH
+        case 0x63: { 
             int32_t v1 = getReg(rs1);
             int32_t v2 = getReg(rs2);
             int32_t off = immB();
@@ -188,21 +188,21 @@ CpuStatus RiscvCpu::step() {
             if (take) nextPc = pc_ + off;
             break;
         }
-        case 0x37: { // LUI
+        case 0x37: { 
             setReg(rd, (int32_t)immU());
             break;
         }
-        case 0x17: { // AUIPC
+        case 0x17: { 
             setReg(rd, (int32_t)(pc_ + immU()));
             break;
         }
-        case 0x6F: { // JAL
+        case 0x6F: { 
             int32_t off = immJ();
             setReg(rd, (int32_t)nextPc);
             nextPc = pc_ + off;
             break;
         }
-        case 0x67: { // JALR
+        case 0x67: { 
             if (funct3 != 0) {
                 illegal(insn);
                 return CpuStatus::Error;
@@ -212,13 +212,13 @@ CpuStatus RiscvCpu::step() {
             nextPc = (uint32_t)t & ~1u;
             break;
         }
-        case 0x73: { // SYSTEM
-            if (insn == 0x00100073u) { // EBREAK
+        case 0x73: { 
+            if (insn == 0x00100073u) { 
                 halted_ = true;
                 pc_ = nextPc;
                 return CpuStatus::Halted;
             }
-            if (insn == 0x00000073u) { // ECALL
+            if (insn == 0x00000073u) { 
                 int32_t a7 = getReg(17);
                 int32_t a0 = getReg(10);
                 if (a7 == 1) {

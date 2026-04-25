@@ -86,4 +86,4 @@ inline uint32_t ecall() { return 0x00000073u; }
 
 inline uint32_t ebreak() { return 0x00100073u; }
 
-} // namespace riscv
+} 
