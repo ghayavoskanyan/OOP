@@ -1,4 +1,5 @@
 #include "ExprParser.h"
+#include <cmath>
 #include <stdexcept>
 
 namespace expr_parser {
@@ -8,7 +9,14 @@ static std::unique_ptr<ASTNode> parsePostfix(Lexer& lexer, SymbolTable& sym, Typ
 static std::unique_ptr<ASTNode> parseUnary(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
 static std::unique_ptr<ASTNode> parseMultiplicative(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
 static std::unique_ptr<ASTNode> parseAdditive(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
+static std::unique_ptr<ASTNode> parseShift(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
+static std::unique_ptr<ASTNode> parseBitwiseAnd(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
+static std::unique_ptr<ASTNode> parseBitwiseXor(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
+static std::unique_ptr<ASTNode> parseBitwiseOr(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
 static std::unique_ptr<ASTNode> parseComparison(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
+static std::unique_ptr<ASTNode> parseLogicalAnd(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
+static std::unique_ptr<ASTNode> parseLogicalOr(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
+static std::unique_ptr<ASTNode> parseConditional(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
 static std::unique_ptr<ASTNode> parseAssignment(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
 
 static std::unique_ptr<ASTNode> parsePrimary(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
@@ -40,6 +48,29 @@ static std::unique_ptr<ASTNode> parsePrimary(Lexer& lexer, SymbolTable& sym, Typ
         }
         lexer.pushBack(la);
         return std::make_unique<VariableNode>(t.value, sym);
+    }
+    if (t.type == TokenType::Keyword) {
+        if (t.value == "true") return std::make_unique<NumberNode>(1);
+        if (t.value == "false" || t.value == "none") return std::make_unique<NumberNode>(0);
+        if (t.value == "PI") return std::make_unique<NumberNode>(3);
+        if (t.value == "E") return std::make_unique<NumberNode>(2);
+        if (t.value == "endl") return std::make_unique<NumberNode>(10);
+        if (t.value == "sqrt" || t.value == "abs") {
+            Token la = lexer.getNextToken();
+            if (la.type != TokenType::OpenParen) throw std::runtime_error("Expected '(' after builtin name");
+            std::vector<std::unique_ptr<ASTNode>> args;
+            Token nx = lexer.getNextToken();
+            if (nx.type != TokenType::CloseParen) {
+                lexer.pushBack(nx);
+                while (true) {
+                    args.push_back(parseExpression(lexer, sym, types, false));
+                    Token sep = lexer.getNextToken();
+                    if (sep.type == TokenType::CloseParen) break;
+                    if (sep.type != TokenType::Comma) throw std::runtime_error("Expected ',' or ')' in argument list");
+                }
+            }
+            return std::make_unique<CallNode>(t.value, std::move(args), sym);
+        }
     }
     if (t.type == TokenType::OpenParen) {
         auto e = parseExpression(lexer, sym, types, false);
@@ -106,6 +137,26 @@ static std::unique_ptr<ASTNode> parseUnary(Lexer& lexer, SymbolTable& sym, TypeR
             throw std::runtime_error("Expected ')' after static_cast argument");
         return parsePostfix(lexer, sym, types, std::make_unique<CastNode>(std::move(inner)));
     }
+    if (t.type == TokenType::Keyword && t.value == "sizeof") {
+        Token op = lexer.getNextToken();
+        if (op.type != TokenType::OpenParen) throw std::runtime_error("Expected '(' after sizeof");
+        Token inner = lexer.getNextToken();
+        int32_t sz = 4;
+        if (inner.type == TokenType::Keyword && inner.value == "int") {
+            sz = 4;
+        } else if (inner.type == TokenType::Name) {
+            const std::string* inst = types.findInstanceType(inner.value);
+            if (inst) {
+                const AggregateType* ag = types.findAggregate(*inst);
+                if (ag) sz = ag->sizeWords * 4;
+            }
+        } else {
+            throw std::runtime_error("Unsupported sizeof argument");
+        }
+        Token cp = lexer.getNextToken();
+        if (cp.type != TokenType::CloseParen) throw std::runtime_error("Expected ')' after sizeof");
+        return std::make_unique<NumberNode>(sz);
+    }
     if (t.type == TokenType::Operator && t.value == "-") {
         auto inner = parseUnary(lexer, sym, types);
         return parsePostfix(lexer, sym, types, std::make_unique<UnaryOpNode>('-', std::move(inner)));
@@ -159,6 +210,21 @@ static std::unique_ptr<ASTNode> parseAdditive(Lexer& lexer, SymbolTable& sym, Ty
     return left;
 }
 
+static std::unique_ptr<ASTNode> parseShift(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
+    auto left = parseAdditive(lexer, sym, types);
+    while (true) {
+        Token op = lexer.getNextToken();
+        if (op.type != TokenType::Operator || (op.value != "<<" && op.value != ">>")) {
+            lexer.pushBack(op);
+            break;
+        }
+        char c = (op.value == "<<") ? 'S' : 'T';
+        auto right = parseAdditive(lexer, sym, types);
+        left = std::make_unique<BinaryOpNode>(c, std::move(left), std::move(right));
+    }
+    return left;
+}
+
 static char cmpToOp(const std::string& s) {
     if (s == ">") return '>';
     if (s == "<") return '<';
@@ -170,7 +236,7 @@ static char cmpToOp(const std::string& s) {
 }
 
 static std::unique_ptr<ASTNode> parseComparison(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
-    auto left = parseAdditive(lexer, sym, types);
+    auto left = parseShift(lexer, sym, types);
     while (true) {
         Token op = lexer.getNextToken();
         if (op.type != TokenType::Comparison) {
@@ -179,20 +245,115 @@ static std::unique_ptr<ASTNode> parseComparison(Lexer& lexer, SymbolTable& sym, 
         }
         char c = cmpToOp(op.value);
         if (!c) throw std::runtime_error("Bad comparison op");
-        auto right = parseAdditive(lexer, sym, types);
+        auto right = parseShift(lexer, sym, types);
         left = std::make_unique<BinaryOpNode>(c, std::move(left), std::move(right));
     }
     return left;
 }
 
-static std::unique_ptr<ASTNode> parseAssignment(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
+static std::unique_ptr<ASTNode> parseBitwiseAnd(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
     auto left = parseComparison(lexer, sym, types);
+    while (true) {
+        Token op = lexer.getNextToken();
+        if (op.type != TokenType::Operator || op.value != "&") {
+            lexer.pushBack(op);
+            break;
+        }
+        auto right = parseComparison(lexer, sym, types);
+        left = std::make_unique<BinaryOpNode>('&', std::move(left), std::move(right));
+    }
+    return left;
+}
+
+static std::unique_ptr<ASTNode> parseBitwiseXor(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
+    auto left = parseBitwiseAnd(lexer, sym, types);
+    while (true) {
+        Token op = lexer.getNextToken();
+        if (op.type != TokenType::Operator || op.value != "^") {
+            lexer.pushBack(op);
+            break;
+        }
+        auto right = parseBitwiseAnd(lexer, sym, types);
+        left = std::make_unique<BinaryOpNode>('X', std::move(left), std::move(right));
+    }
+    return left;
+}
+
+static std::unique_ptr<ASTNode> parseBitwiseOr(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
+    auto left = parseBitwiseXor(lexer, sym, types);
+    while (true) {
+        Token op = lexer.getNextToken();
+        if (op.type != TokenType::Operator || op.value != "|") {
+            lexer.pushBack(op);
+            break;
+        }
+        auto right = parseBitwiseXor(lexer, sym, types);
+        left = std::make_unique<BinaryOpNode>('|', std::move(left), std::move(right));
+    }
+    return left;
+}
+
+static std::unique_ptr<ASTNode> parseLogicalAnd(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
+    auto left = parseBitwiseOr(lexer, sym, types);
+    while (true) {
+        Token op = lexer.getNextToken();
+        if (op.type != TokenType::Operator || op.value != "&&") {
+            lexer.pushBack(op);
+            break;
+        }
+        auto right = parseBitwiseOr(lexer, sym, types);
+        left = std::make_unique<BinaryOpNode>('A', std::move(left), std::move(right));
+    }
+    return left;
+}
+
+static std::unique_ptr<ASTNode> parseLogicalOr(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
+    auto left = parseLogicalAnd(lexer, sym, types);
+    while (true) {
+        Token op = lexer.getNextToken();
+        if (op.type != TokenType::Operator || op.value != "||") {
+            lexer.pushBack(op);
+            break;
+        }
+        auto right = parseLogicalAnd(lexer, sym, types);
+        left = std::make_unique<BinaryOpNode>('O', std::move(left), std::move(right));
+    }
+    return left;
+}
+
+static std::unique_ptr<ASTNode> parseConditional(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
+    auto cond = parseLogicalOr(lexer, sym, types);
+    Token q = lexer.getNextToken();
+    if (!(q.type == TokenType::Operator && q.value == "?")) {
+        lexer.pushBack(q);
+        return cond;
+    }
+    auto yesExpr = parseExpression(lexer, sym, types, false);
+    Token col = lexer.getNextToken();
+    if (col.type != TokenType::Colon) throw std::runtime_error("Expected ':' in ternary expression");
+    auto noExpr = parseConditional(lexer, sym, types);
+    return std::make_unique<TernaryNode>(std::move(cond), std::move(yesExpr), std::move(noExpr));
+}
+
+static std::unique_ptr<ASTNode> parseAssignment(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
+    auto left = parseConditional(lexer, sym, types);
     Token t = lexer.getNextToken();
-    if (t.type == TokenType::Assignment) {
+    if (t.type == TokenType::Assignment || (t.type == TokenType::Operator &&
+        (t.value == "+=" || t.value == "-=" || t.value == "*=" || t.value == "/=" || t.value == "%=" || t.value == "^="))) {
         if (left->type != NodeType::VariableNode)
             throw std::runtime_error("Left side of assignment must be a variable");
         std::string vn = static_cast<VariableNode*>(left.get())->name;
         auto rhs = parseAssignment(lexer, sym, types);
+        if (t.type == TokenType::Operator) {
+            char bop = '+';
+            if (t.value == "-=") bop = '-';
+            else if (t.value == "*=") bop = '*';
+            else if (t.value == "/=") bop = '/';
+            else if (t.value == "%=") bop = '%';
+            else if (t.value == "^=") bop = 'X';
+            auto lhsRead = std::make_unique<VariableNode>(vn, sym);
+            rhs = std::make_unique<BinaryOpNode>(bop, std::move(lhsRead), std::move(rhs));
+        }
         return std::make_unique<AssignmentNode>(vn, std::move(rhs), sym);
     }
     lexer.pushBack(t);

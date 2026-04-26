@@ -15,6 +15,9 @@ enum class TokenType {
     Colon,
     Comma,
     Dot,
+    OpenBracket,
+    CloseBracket,
+    StringLiteral,
     Assignment,
     Keyword,
     Unknown

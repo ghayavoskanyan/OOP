@@ -291,9 +291,9 @@ std::unique_ptr<StatementNode> StatementParser::parseBlock() {
                 block->addStatement(parseAfterIntType(false));
             } else if (t.value == "var") {
                 block->addStatement(parseDeclaration(false));
-            } else if (t.value == "void") {
+            } else if (t.value == "void" || t.value == "none") {
                 Token name = lexer.getNextToken();
-                if (name.type != TokenType::Name) throw std::runtime_error("Expected function name after void");
+                if (name.type != TokenType::Name) throw std::runtime_error("Expected function name after void/none");
                 block->addStatement(parseFunctionDefinition(true, name.value));
             } else if (t.value == "return") {
                 block->addStatement(parseReturnStatement());
@@ -305,6 +305,12 @@ std::unique_ptr<StatementNode> StatementParser::parseBlock() {
                 block->addStatement(parseContinueStatement());
             } else if (t.value == "goto") {
                 block->addStatement(parseGotoStatement());
+            } else if (t.value == "import") {
+                Token p = lexer.getNextToken();
+                if (p.type != TokenType::StringLiteral) throw std::runtime_error("Expected string in import");
+                Token semi = lexer.getNextToken();
+                if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after import");
+                block->addStatement(std::make_unique<SeqNode>());
             } else if (t.value == "enum") {
                 block->addStatement(parseEnumDefinition());
             } else if (t.value == "struct") {
@@ -452,6 +458,23 @@ std::unique_ptr<StatementNode> StatementParser::parsePrintStatement() {
     Token op = lexer.getNextToken();
     if (op.type != TokenType::OpenParen) throw std::runtime_error("Expected '(' after print");
 
+    Token first = lexer.getNextToken();
+    if (first.type == TokenType::StringLiteral) {
+        Token cp = lexer.getNextToken();
+        if (cp.type != TokenType::CloseParen) throw std::runtime_error("Expected ')' after print string");
+        Token semi = lexer.getNextToken();
+        if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after print string");
+        return std::make_unique<PrintStringNode>(first.value);
+    }
+    if (first.type == TokenType::Keyword && first.value == "endl") {
+        Token cp = lexer.getNextToken();
+        if (cp.type != TokenType::CloseParen) throw std::runtime_error("Expected ')' after print(endl)");
+        Token semi = lexer.getNextToken();
+        if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after print(endl)");
+        return std::make_unique<PrintStringNode>("\n");
+    }
+    lexer.pushBack(first);
+
     auto expr = parseExpression(true);
 
     Token cp = lexer.getNextToken();
@@ -481,9 +504,9 @@ std::unique_ptr<StatementNode> StatementParser::parseStatement() {
         }
         if (t.value == "int") return parseAfterIntType(false);
         if (t.value == "var") return parseDeclaration(false);
-        if (t.value == "void") {
+        if (t.value == "void" || t.value == "none") {
             Token name = lexer.getNextToken();
-            if (name.type != TokenType::Name) throw std::runtime_error("Expected function name after void");
+            if (name.type != TokenType::Name) throw std::runtime_error("Expected function name after void/none");
             return parseFunctionDefinition(true, name.value);
         }
         if (t.value == "return") return parseReturnStatement();
@@ -491,6 +514,13 @@ std::unique_ptr<StatementNode> StatementParser::parseStatement() {
         if (t.value == "break") return parseBreakStatement();
         if (t.value == "continue") return parseContinueStatement();
         if (t.value == "goto") return parseGotoStatement();
+        if (t.value == "import") {
+            Token p = lexer.getNextToken();
+            if (p.type != TokenType::StringLiteral) throw std::runtime_error("Expected string in import");
+            Token semi = lexer.getNextToken();
+            if (semi.type != TokenType::Semicolon) throw std::runtime_error("Expected ';' after import");
+            return std::make_unique<SeqNode>();
+        }
         if (t.value == "enum") return parseEnumDefinition();
         if (t.value == "struct") return parseAggregateDefinition(AggregateKind::Struct);
         if (t.value == "union") return parseAggregateDefinition(AggregateKind::Union);

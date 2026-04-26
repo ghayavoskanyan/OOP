@@ -54,6 +54,9 @@ CpuStatus RiscvCpu::step() {
     }
 
     uint32_t insn = loadWord(pc_);
+    if (debugTrace_) {
+        std::cout << "[PC=0x" << std::hex << pc_ << "] insn=0x" << insn << std::dec << "\n";
+    }
     uint32_t opcode = insn & 0x7F;
     uint32_t rd = (insn >> 7) & 0x1F;
     uint32_t rs1 = (insn >> 15) & 0x1F;
@@ -244,10 +247,12 @@ CpuStatus RiscvCpu::step() {
 
     x_[0] = 0;
     pc_ = nextPc;
+    cycleCount_++;
     return CpuStatus::Running;
 }
 
 void RiscvCpu::runUntilHalt(size_t maxSteps) {
+    cycleCount_ = 0;
     for (size_t i = 0; i < maxSteps && !halted_; ++i) {
         CpuStatus s = step();
         if (s != CpuStatus::Running) break;

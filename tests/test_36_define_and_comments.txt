@@ -1,0 +1,8 @@
+#define PI 3
+// line comment
+/*
+  block comment
+*/
+int r = 4;
+int area = PI * r * r;
+print(area);

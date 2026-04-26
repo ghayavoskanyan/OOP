@@ -25,6 +25,13 @@ int PrintNode::compile(std::vector<Instruction>& prog) const {
     return reg;
 }
 
+PrintStringNode::PrintStringNode(std::string t) : text_(std::move(t)) { type = StatementType::PrintStringNode; }
+
+int PrintStringNode::compile(std::vector<Instruction>& prog) const {
+    (void)prog;
+    throw std::runtime_error("String print is handled by the statement interpreter");
+}
+
 DeclNode::DeclNode(const std::string& name, std::unique_ptr<ASTNode> init, SymbolTable& sym, bool isStatic) : varName(name), symbolTable(sym), isStatic_(isStatic) {
     initializer = std::move(init);
     type = StatementType::DeclNode;

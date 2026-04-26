@@ -1,4 +1,5 @@
 #include "StmtInterpreter.h"
+#include <cmath>
 #include <iostream>
 #include <stdexcept>
 
@@ -9,6 +10,9 @@ static bool astNeedsInterpreter(const ASTNode* n) {
             return true;
         case NodeType::BinaryOpNode: {
             auto* b = static_cast<const BinaryOpNode*>(n);
+            char op = b->getOp();
+            if (op == '%' || op == '&' || op == '|' || op == 'X' || op == 'S' || op == 'T' || op == 'A' || op == 'O')
+                return true;
             return astNeedsInterpreter(b->getLeft().get()) || astNeedsInterpreter(b->getRight().get());
         }
         case NodeType::UnaryOpNode: {
@@ -23,6 +27,8 @@ static bool astNeedsInterpreter(const ASTNode* n) {
             auto* c = static_cast<const CastNode*>(n);
             return astNeedsInterpreter(c->getInner());
         }
+        case NodeType::TernaryNode:
+            return true;
         default:
             return false;
     }
@@ -44,6 +50,8 @@ static bool stmtNeedsInterpreter(const StatementNode* s) {
             return astNeedsInterpreter(static_cast<const ExprStatement*>(s)->getExpr());
         case StatementType::PrintNode:
             return astNeedsInterpreter(static_cast<const PrintNode*>(s)->getExpr());
+        case StatementType::PrintStringNode:
+            return true;
         case StatementType::DeclNode: {
             auto* d = static_cast<const DeclNode*>(s);
             return d->hasInitializer() && astNeedsInterpreter(d->getInitializer());
@@ -146,9 +154,21 @@ int32_t StmtInterpreter::evalExpr(const ASTNode* node, std::unordered_map<std::s
         }
         case NodeType::BinaryOpNode: {
             auto* b = static_cast<const BinaryOpNode*>(node);
+            char op = b->getOp();
+            if (op == 'A') {
+                int32_t L = evalExpr(b->getLeft().get(), locals);
+                if (!L) return 0;
+                int32_t R = evalExpr(b->getRight().get(), locals);
+                return (R != 0) ? 1 : 0;
+            }
+            if (op == 'O') {
+                int32_t L = evalExpr(b->getLeft().get(), locals);
+                if (L) return 1;
+                int32_t R = evalExpr(b->getRight().get(), locals);
+                return (R != 0) ? 1 : 0;
+            }
             int32_t L = evalExpr(b->getLeft().get(), locals);
             int32_t R = evalExpr(b->getRight().get(), locals);
-            char op = b->getOp();
             switch (op) {
                 case '+': return L + R;
                 case '-': return L - R;
@@ -159,6 +179,11 @@ int32_t StmtInterpreter::evalExpr(const ASTNode* node, std::unordered_map<std::s
                 case '%':
                     if (R == 0) throw std::runtime_error("Modulo by zero");
                     return L % R;
+                case '&': return L & R;
+                case '|': return L | R;
+                case 'X': return L ^ R;
+                case 'S': return L << R;
+                case 'T': return L >> R;
                 case '>': return L > R ? 1 : 0;
                 case '<': return L < R ? 1 : 0;
                 case 'G': return L >= R ? 1 : 0;
@@ -179,6 +204,19 @@ int32_t StmtInterpreter::evalExpr(const ASTNode* node, std::unordered_map<std::s
             return evalExpr(static_cast<const CastNode*>(node)->getInner(), locals);
         case NodeType::CallNode: {
             auto* c = static_cast<const CallNode*>(node);
+            if (c->getFuncName() == "sqrt") {
+                const auto& args = c->getArgs();
+                if (args.size() != 1) throw std::runtime_error("sqrt expects 1 arg");
+                int32_t v = evalExpr(args[0].get(), locals);
+                if (v < 0) throw std::runtime_error("sqrt of negative value");
+                return static_cast<int32_t>(std::sqrt(static_cast<double>(v)));
+            }
+            if (c->getFuncName() == "abs") {
+                const auto& args = c->getArgs();
+                if (args.size() != 1) throw std::runtime_error("abs expects 1 arg");
+                int32_t v = evalExpr(args[0].get(), locals);
+                return v < 0 ? -v : v;
+            }
             auto it = functions_.find(c->getFuncName());
             if (it == functions_.end()) throw std::runtime_error("Undefined function: " + c->getFuncName());
             const FunctionDefNode* fn = it->second;
@@ -195,6 +233,11 @@ int32_t StmtInterpreter::evalExpr(const ASTNode* node, std::unordered_map<std::s
             if (fn->isVoid()) return 0;
             if (!returned) return 0;
             return ret;
+        }
+        case NodeType::TernaryNode: {
+            auto* t = static_cast<const TernaryNode*>(node);
+            int32_t c = evalExpr(t->getCondition(), locals);
+            return c ? evalExpr(t->getThenExpr(), locals) : evalExpr(t->getElseExpr(), locals);
         }
         default:
             throw std::runtime_error("Unsupported expression in interpreter");
@@ -214,6 +257,10 @@ void StmtInterpreter::execStmt(const StatementNode* stmt, std::unordered_map<std
         case StatementType::PrintNode: {
             int32_t v = evalExpr(static_cast<const PrintNode*>(stmt)->getExpr(), locals);
             std::cout << v << std::endl;
+            return;
+        }
+        case StatementType::PrintStringNode: {
+            std::cout << static_cast<const PrintStringNode*>(stmt)->getText();
             return;
         }
         case StatementType::DeclNode: {

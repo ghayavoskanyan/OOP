@@ -6,7 +6,7 @@
 #include "VM.h"
 #include "SymbolTable.h"
 
-enum class NodeType { NumberNode, VariableNode, BinaryOpNode, UnaryOpNode, AssignmentNode, CallNode, CastNode };
+enum class NodeType { NumberNode, VariableNode, BinaryOpNode, UnaryOpNode, AssignmentNode, CallNode, CastNode, TernaryNode };
 
 class ASTNode {
 public:
@@ -83,4 +83,15 @@ public:
     int compile(std::vector<Instruction>& prog) const override;
     const std::string& getFuncName() const { return funcName; }
     const std::vector<std::unique_ptr<ASTNode>>& getArgs() const { return args; }
+};
+
+class TernaryNode : public ASTNode {
+    std::unique_ptr<ASTNode> cond_, yes_, no_;
+
+public:
+    TernaryNode(std::unique_ptr<ASTNode> c, std::unique_ptr<ASTNode> y, std::unique_ptr<ASTNode> n);
+    int compile(std::vector<Instruction>& prog) const override;
+    const ASTNode* getCondition() const { return cond_.get(); }
+    const ASTNode* getThenExpr() const { return yes_.get(); }
+    const ASTNode* getElseExpr() const { return no_.get(); }
 };

@@ -17,6 +17,7 @@ enum class StatementType {
     BlockNode,
     SeqNode,
     PrintNode,
+    PrintStringNode,
     DeclNode,
     FunctionDef,
     ReturnStmt,
@@ -51,6 +52,15 @@ public:
     PrintNode(std::unique_ptr<ASTNode> e, SymbolTable& sym);
     int compile(std::vector<Instruction>& prog) const override;
     const ASTNode* getExpr() const { return expr.get(); }
+};
+
+class PrintStringNode : public StatementNode {
+    std::string text_;
+
+public:
+    explicit PrintStringNode(std::string t);
+    int compile(std::vector<Instruction>& prog) const override;
+    const std::string& getText() const { return text_; }
 };
 
 class DeclNode : public StatementNode {

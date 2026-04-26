@@ -1,0 +1,4 @@
+#define K 7
+int helper() {
+  return K + 1;
+}

@@ -1,0 +1,11 @@
+print(sizeof(int));
+struct Pair {
+  int a;
+  int b;
+};
+Pair p;
+print(sizeof(p));
+print(sqrt(81));
+print(abs(-17));
+print(PI);
+print(E);

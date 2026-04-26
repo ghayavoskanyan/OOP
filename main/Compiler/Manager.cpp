@@ -7,9 +7,105 @@
 #include "StmtInterpreter.h"
 #include "VmMonitor.h"
 #include <fstream>
+#include <filesystem>
+#include <cctype>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_map>
+
+static std::string stripComments(const std::string& src) {
+    std::string out;
+    bool inLine = false, inBlock = false, inString = false;
+    for (size_t i = 0; i < src.size(); ++i) {
+        char c = src[i];
+        char n = (i + 1 < src.size()) ? src[i + 1] : '\0';
+        if (inLine) {
+            if (c == '\n') {
+                inLine = false;
+                out.push_back(c);
+            }
+            continue;
+        }
+        if (inBlock) {
+            if (c == '*' && n == '/') {
+                inBlock = false;
+                ++i;
+            } else if (c == '\n') {
+                out.push_back('\n');
+            }
+            continue;
+        }
+        if (!inString && c == '/' && n == '/') {
+            inLine = true;
+            ++i;
+            continue;
+        }
+        if (!inString && c == '/' && n == '*') {
+            inBlock = true;
+            ++i;
+            continue;
+        }
+        if (c == '"' && (i == 0 || src[i - 1] != '\\')) inString = !inString;
+        out.push_back(c);
+    }
+    return out;
+}
+
+static std::string applyDefines(const std::string& line, const std::unordered_map<std::string, std::string>& defs) {
+    std::string out;
+    for (size_t i = 0; i < line.size();) {
+        if (std::isalpha(static_cast<unsigned char>(line[i])) || line[i] == '_') {
+            size_t j = i + 1;
+            while (j < line.size() && (std::isalnum(static_cast<unsigned char>(line[j])) || line[j] == '_')) ++j;
+            std::string tok = line.substr(i, j - i);
+            auto it = defs.find(tok);
+            if (it != defs.end()) out += it->second;
+            else out += tok;
+            i = j;
+        } else {
+            out.push_back(line[i++]);
+        }
+    }
+    return out;
+}
+
+static std::string preprocessSource(const std::string& src, const std::filesystem::path& baseDir,
+                                   std::unordered_map<std::string, std::string>& defs, int depth = 0) {
+    if (depth > 16) throw std::runtime_error("Import nesting too deep");
+    std::istringstream iss(stripComments(src));
+    std::ostringstream out;
+    std::string line;
+    while (std::getline(iss, line)) {
+        std::string trimmed = line;
+        size_t p = trimmed.find_first_not_of(" \t");
+        trimmed = (p == std::string::npos) ? "" : trimmed.substr(p);
+        if (trimmed.rfind("#define", 0) == 0) {
+            std::istringstream ds(trimmed);
+            std::string hash, name, value;
+            ds >> hash >> name;
+            std::getline(ds, value);
+            size_t vp = value.find_first_not_of(" \t");
+            if (!name.empty() && vp != std::string::npos) defs[name] = value.substr(vp);
+            continue;
+        }
+        if (trimmed.rfind("import", 0) == 0) {
+            size_t q1 = trimmed.find('"');
+            size_t q2 = (q1 == std::string::npos) ? std::string::npos : trimmed.find('"', q1 + 1);
+            if (q1 != std::string::npos && q2 != std::string::npos && q2 > q1 + 1) {
+                std::filesystem::path imp = baseDir / trimmed.substr(q1 + 1, q2 - q1 - 1);
+                std::ifstream f(imp.string());
+                if (!f.is_open()) throw std::runtime_error("Cannot open imported file: " + imp.string());
+                std::ostringstream buf;
+                buf << f.rdbuf();
+                out << preprocessSource(buf.str(), imp.parent_path(), defs, depth + 1) << "\n";
+                continue;
+            }
+        }
+        out << applyDefines(line, defs) << "\n";
+    }
+    return out.str();
+}
 
 Manager::Manager() { calculator = std::make_unique<InstructionCalculator>(symbolTable); }
 
@@ -75,7 +171,8 @@ void Manager::runFile(const std::string& filepath) {
 
     std::ostringstream oss;
     oss << file.rdbuf();
-    std::string code = oss.str();
+    std::unordered_map<std::string, std::string> defs;
+    std::string code = preprocessSource(oss.str(), std::filesystem::path(filepath).parent_path(), defs);
     file.close();
 
     std::cout << "Running file: " << filepath << "\n";
@@ -128,7 +225,8 @@ bool Manager::compileFileToIr(const std::string& sourcePath, const std::string& 
     if (!file.is_open()) return false;
     std::ostringstream oss;
     oss << file.rdbuf();
-    std::string code = oss.str();
+    std::unordered_map<std::string, std::string> defs;
+    std::string code = preprocessSource(oss.str(), std::filesystem::path(sourcePath).parent_path(), defs);
 
     std::istringstream iss(code);
     Lexer lex(iss);
@@ -151,7 +249,8 @@ bool Manager::compileFileToExe(const std::string& sourcePath, const std::string&
     if (!file.is_open()) return false;
     std::ostringstream oss;
     oss << file.rdbuf();
-    std::string code = oss.str();
+    std::unordered_map<std::string, std::string> defs;
+    std::string code = preprocessSource(oss.str(), std::filesystem::path(sourcePath).parent_path(), defs);
 
     std::istringstream iss(code);
     Lexer lex(iss);

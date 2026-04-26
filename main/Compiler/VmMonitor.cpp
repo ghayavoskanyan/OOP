@@ -1,5 +1,7 @@
 #include "VmMonitor.h"
 #include "ExeImage.h"
+#include <cstdlib>
+#include <iostream>
 #include <cstring>
 
 std::vector<uint8_t> VmMonitor::buildImage(const std::vector<uint32_t>& code, const std::vector<int32_t>& data,
@@ -34,8 +36,11 @@ std::vector<uint8_t> VmMonitor::buildImage(const std::vector<uint32_t>& code, co
 
 bool VmMonitor::runImage(const std::vector<uint8_t>& mem, uint32_t entryPc, size_t maxSteps, std::string& errOut) {
     RiscvCpu cpu(mem);
+    const char* dbg = std::getenv("OOP_VM_DEBUG");
+    if (dbg && std::string(dbg) == "1") cpu.setDebugTrace(true);
     cpu.setPc(entryPc);
     cpu.runUntilHalt(maxSteps);
+    std::cout << "[VM] cycles executed: " << cpu.getCycleCount() << "\n";
     if (!cpu.getLastError().empty()) {
         errOut = cpu.getLastError();
         return false;

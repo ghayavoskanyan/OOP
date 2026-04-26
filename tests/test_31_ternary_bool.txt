@@ -1,0 +1,6 @@
+int a = 0;
+int b = 5;
+print(a ? 100 : 200);
+print((b > 0) ? 1 : 0);
+print(true);
+print(false);

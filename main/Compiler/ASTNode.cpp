@@ -144,3 +144,13 @@ int CallNode::compile(std::vector<Instruction>& prog) const {
     (void)prog;
     throw std::runtime_error("Function calls are executed by the statement interpreter, not the stack VM.");
 }
+
+TernaryNode::TernaryNode(std::unique_ptr<ASTNode> c, std::unique_ptr<ASTNode> y, std::unique_ptr<ASTNode> n)
+    : cond_(std::move(c)), yes_(std::move(y)), no_(std::move(n)) {
+    type = NodeType::TernaryNode;
+}
+
+int TernaryNode::compile(std::vector<Instruction>& prog) const {
+    (void)prog;
+    throw std::runtime_error("Ternary operator is handled by the statement interpreter");
+}

@@ -18,6 +18,8 @@ public:
 
     CpuStatus step();
     void runUntilHalt(size_t maxSteps = 100000000);
+    void setDebugTrace(bool on) { debugTrace_ = on; }
+    uint64_t getCycleCount() const { return cycleCount_; }
 
     const std::string& getLastError() const { return lastError_; }
     bool isHalted() const { return halted_; }
@@ -28,6 +30,8 @@ private:
     uint32_t pc_{0};
     bool halted_{false};
     std::string lastError_;
+    bool debugTrace_{false};
+    uint64_t cycleCount_{0};
 
     uint32_t loadWord(uint32_t addr) const;
     void storeWord(uint32_t addr, uint32_t val);

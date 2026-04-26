@@ -21,6 +21,16 @@ void Lexer::initializeKeywords() {
     keywords["public"] = TokenType::Keyword;
     keywords["private"] = TokenType::Keyword;
     keywords["extern"] = TokenType::Keyword;
+    keywords["true"] = TokenType::Keyword;
+    keywords["false"] = TokenType::Keyword;
+    keywords["none"] = TokenType::Keyword;
+    keywords["endl"] = TokenType::Keyword;
+    keywords["import"] = TokenType::Keyword;
+    keywords["sizeof"] = TokenType::Keyword;
+    keywords["sqrt"] = TokenType::Keyword;
+    keywords["abs"] = TokenType::Keyword;
+    keywords["PI"] = TokenType::Keyword;
+    keywords["E"] = TokenType::Keyword;
     keywords["var"]    = TokenType::Keyword;
     keywords["static"] = TokenType::Keyword;
     keywords["return"] = TokenType::Keyword;
@@ -59,9 +69,10 @@ Lexer::CharType Lexer::getCharType(char c) {
     if (isalpha(c) || c == '_') return CharType::Letter;
     if (isspace(c))  return CharType::Whitespace;
     if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' ||
-        c == '=' || c == '>' || c == '<' || c == '!' || c == '&' || c == '|')
+        c == '=' || c == '>' || c == '<' || c == '!' || c == '&' || c == '|' || c == '^' || c == '?')
         return CharType::Operator_;
     if (c == '(' || c == ')') return CharType::Paren;
+    if (c == '[' || c == ']') return CharType::Other;
     if (c == '{' || c == '}') return CharType::Brace;
     if (c == ';') return CharType::Semicolon;
     if (c == '.') return CharType::Dot;
@@ -101,6 +112,29 @@ Token Lexer::getNextToken() {
             if (c == '.')
                 return Token(TokenType::Dot, ".", line, column);
             return Token(c == ':' ? TokenType::Colon : TokenType::Comma, std::string(1, c), line, column);
+        }
+        if (currentState == LexerState::Start && currentToken.empty() && (c == '[' || c == ']')) {
+            return Token(c == '[' ? TokenType::OpenBracket : TokenType::CloseBracket, std::string(1, c), line, column);
+        }
+        if (currentState == LexerState::Start && currentToken.empty() && c == '"') {
+            std::string s;
+            while (input.get(c)) {
+                column++;
+                if (c == '\\') {
+                    char e = 0;
+                    if (!input.get(e)) break;
+                    column++;
+                    if (e == 'n') s.push_back('\n');
+                    else if (e == 't') s.push_back('\t');
+                    else if (e == '\\') s.push_back('\\');
+                    else if (e == '"') s.push_back('"');
+                    else s.push_back(e);
+                    continue;
+                }
+                if (c == '"') break;
+                s.push_back(c);
+            }
+            return Token(TokenType::StringLiteral, s, line, column);
         }
 
         if (ct == CharType::Paren) {

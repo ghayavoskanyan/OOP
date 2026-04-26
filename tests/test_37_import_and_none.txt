@@ -1,0 +1,8 @@
+import "imports/math_consts.txt";
+none show() {
+  print(helper());
+}
+int main() {
+  show();
+  return 0;
+}
