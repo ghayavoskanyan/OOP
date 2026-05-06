@@ -80,6 +80,7 @@ test_19_switch_default_only.txt     →  500
 test_20_recursion_factorial.txt     →  120
 test_21_global_counter_across_calls.txt →  1, 2, 3
 test_22_multifile_combined_logic.txt  →  19  (add(3, mul(2,8)))
+test_38_extended_operators_math.txt   →  validates **, //, %/, ~, and/or/not, pi/e, pow/log2/ceil
 
 Adjust if your interpreter changes. If a test throws, note it in your report and fix the compiler.
 

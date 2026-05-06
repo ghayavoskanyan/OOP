@@ -1,0 +1,12 @@
+int a = 2 ** 5;
+print(a);
+print(7 %/ 3);
+print(~5);
+print(not 0);
+print(1 and 0);
+print(1 or 0);
+print(pi);
+print(e);
+print(pow(2, 4));
+print(log2(8));
+print(ceil(9 / 4));

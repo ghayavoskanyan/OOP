@@ -1,5 +1,6 @@
 #include "StmtInterpreter.h"
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 
@@ -11,12 +12,14 @@ static bool astNeedsInterpreter(const ASTNode* n) {
         case NodeType::BinaryOpNode: {
             auto* b = static_cast<const BinaryOpNode*>(n);
             char op = b->getOp();
-            if (op == '%' || op == '&' || op == '|' || op == 'X' || op == 'S' || op == 'T' || op == 'A' || op == 'O')
+            if (op == '%' || op == '&' || op == '|' || op == 'X' || op == 'S' || op == 'T' || op == 'A' || op == 'O' ||
+                op == 'P' || op == 'Q')
                 return true;
             return astNeedsInterpreter(b->getLeft().get()) || astNeedsInterpreter(b->getRight().get());
         }
         case NodeType::UnaryOpNode: {
             auto* u = static_cast<const UnaryOpNode*>(n);
+            if (u->getOp() == '!' || u->getOp() == '~') return true;
             return astNeedsInterpreter(u->getOperand().get());
         }
         case NodeType::AssignmentNode: {
@@ -87,8 +90,16 @@ static bool stmtNeedsInterpreter(const StatementNode* s) {
 
 bool programNeedsInterpreter(const StatementNode* root) { return stmtNeedsInterpreter(root); }
 
-StmtInterpreter::StmtInterpreter(SymbolTable& globals) : globals_(globals), types_(nullptr) {}
-StmtInterpreter::StmtInterpreter(SymbolTable& globals, TypeRegistry& types) : globals_(globals), types_(&types) {}
+StmtInterpreter::StmtInterpreter(SymbolTable& globals)
+    : globals_(globals), types_(nullptr), frameTop_(nullptr), debugTrace_(false) {
+    const char* dbg = std::getenv("OOP_INTERP_DEBUG");
+    debugTrace_ = (dbg && std::string(dbg) == "1");
+}
+StmtInterpreter::StmtInterpreter(SymbolTable& globals, TypeRegistry& types)
+    : globals_(globals), types_(&types), frameTop_(nullptr), debugTrace_(false) {
+    const char* dbg = std::getenv("OOP_INTERP_DEBUG");
+    debugTrace_ = (dbg && std::string(dbg) == "1");
+}
 
 void StmtInterpreter::registerFunction(const FunctionDefNode* fn) { functions_[fn->getName()] = fn; }
 
@@ -137,6 +148,43 @@ static std::string resolveName(const TypeRegistry* tr, const std::string& n) {
     return tr->resolveStorageName(n);
 }
 
+void StmtInterpreter::pushFrame(StackFrame* frame) {
+    frame->prev = frameTop_;
+    frameTop_ = frame;
+    if (debugTrace_) {
+        std::cout << "[DBG] enter " << frame->functionName << "\n";
+        printStackTrace("[DBG] stack");
+    }
+}
+
+void StmtInterpreter::popFrame() {
+    if (!frameTop_) return;
+    if (debugTrace_) {
+        std::cout << "[DBG] leave " << frameTop_->functionName << "\n";
+    }
+    frameTop_ = frameTop_->prev;
+    if (debugTrace_) {
+        printStackTrace("[DBG] stack");
+    }
+}
+
+void StmtInterpreter::printStackTrace(const std::string& prefix) const {
+    std::cout << prefix << ": ";
+    const StackFrame* cur = frameTop_;
+    if (!cur) {
+        std::cout << "<empty>\n";
+        return;
+    }
+    bool first = true;
+    while (cur) {
+        if (!first) std::cout << " <- ";
+        std::cout << cur->functionName;
+        first = false;
+        cur = cur->prev;
+    }
+    std::cout << "\n";
+}
+
 int32_t StmtInterpreter::evalExpr(const ASTNode* node, std::unordered_map<std::string, int32_t>* locals) {
     if (!node) return 0;
     switch (node->type) {
@@ -150,7 +198,10 @@ int32_t StmtInterpreter::evalExpr(const ASTNode* node, std::unordered_map<std::s
         case NodeType::UnaryOpNode: {
             auto* u = static_cast<const UnaryOpNode*>(node);
             int32_t v = evalExpr(u->getOperand().get(), locals);
-            return (u->getOp() == '-') ? -v : v;
+            if (u->getOp() == '-') return -v;
+            if (u->getOp() == '~') return ~v;
+            if (u->getOp() == '!') return (v == 0) ? 1 : 0;
+            return v;
         }
         case NodeType::BinaryOpNode: {
             auto* b = static_cast<const BinaryOpNode*>(node);
@@ -179,6 +230,10 @@ int32_t StmtInterpreter::evalExpr(const ASTNode* node, std::unordered_map<std::s
                 case '%':
                     if (R == 0) throw std::runtime_error("Modulo by zero");
                     return L % R;
+                case 'Q':
+                    if (R == 0) throw std::runtime_error("Floor division by zero");
+                    return L / R;
+                case 'P': return static_cast<int32_t>(std::pow(static_cast<double>(L), static_cast<double>(R)));
                 case '&': return L & R;
                 case '|': return L | R;
                 case 'X': return L ^ R;
@@ -217,19 +272,50 @@ int32_t StmtInterpreter::evalExpr(const ASTNode* node, std::unordered_map<std::s
                 int32_t v = evalExpr(args[0].get(), locals);
                 return v < 0 ? -v : v;
             }
+            auto callMath1 = [&](double (*fn)(double), const char* name) -> int32_t {
+                const auto& args = c->getArgs();
+                if (args.size() != 1) throw std::runtime_error(std::string(name) + " expects 1 arg");
+                return static_cast<int32_t>(fn(static_cast<double>(evalExpr(args[0].get(), locals))));
+            };
+            if (c->getFuncName() == "sin") return callMath1(std::sin, "sin");
+            if (c->getFuncName() == "cos") return callMath1(std::cos, "cos");
+            if (c->getFuncName() == "tan") return callMath1(std::tan, "tan");
+            if (c->getFuncName() == "asin") return callMath1(std::asin, "asin");
+            if (c->getFuncName() == "acos") return callMath1(std::acos, "acos");
+            if (c->getFuncName() == "atan") return callMath1(std::atan, "atan");
+            if (c->getFuncName() == "cbrt") return callMath1(std::cbrt, "cbrt");
+            if (c->getFuncName() == "exp") return callMath1(std::exp, "exp");
+            if (c->getFuncName() == "log") return callMath1(std::log, "log");
+            if (c->getFuncName() == "ln") return callMath1(std::log, "ln");
+            if (c->getFuncName() == "log10") return callMath1(std::log10, "log10");
+            if (c->getFuncName() == "log2") return callMath1(std::log2, "log2");
+            if (c->getFuncName() == "ceil") return callMath1(std::ceil, "ceil");
+            if (c->getFuncName() == "atan2" || c->getFuncName() == "pow" || c->getFuncName() == "fmod" || c->getFuncName() == "log_ab") {
+                const auto& args = c->getArgs();
+                if (args.size() != 2) throw std::runtime_error(c->getFuncName() + " expects 2 args");
+                double a0 = static_cast<double>(evalExpr(args[0].get(), locals));
+                double a1 = static_cast<double>(evalExpr(args[1].get(), locals));
+                if (c->getFuncName() == "atan2") return static_cast<int32_t>(std::atan2(a0, a1));
+                if (c->getFuncName() == "pow") return static_cast<int32_t>(std::pow(a0, a1));
+                if (c->getFuncName() == "fmod") return static_cast<int32_t>(std::fmod(a0, a1));
+                return static_cast<int32_t>(std::log(a1) / std::log(a0));
+            }
             auto it = functions_.find(c->getFuncName());
             if (it == functions_.end()) throw std::runtime_error("Undefined function: " + c->getFuncName());
             const FunctionDefNode* fn = it->second;
-            std::unordered_map<std::string, int32_t> frame;
+            StackFrame frame;
+            frame.functionName = c->getFuncName();
             const auto& args = c->getArgs();
             const auto& ps = fn->getParams();
             if (args.size() != ps.size())
                 throw std::runtime_error("Wrong argument count for " + c->getFuncName());
-            for (size_t i = 0; i < args.size(); ++i) frame[ps[i].second] = evalExpr(args[i].get(), locals);
+            for (size_t i = 0; i < args.size(); ++i) frame.locals[ps[i].second] = evalExpr(args[i].get(), locals);
             int32_t ret = 0;
             bool returned = false, brk = false, cont = false;
             std::string go;
-            execStmt(fn->getBody(), &frame, ret, returned, brk, cont, go);
+            pushFrame(&frame);
+            execStmt(fn->getBody(), &frame.locals, ret, returned, brk, cont, go);
+            popFrame();
             if (fn->isVoid()) return 0;
             if (!returned) return 0;
             return ret;
@@ -431,8 +517,11 @@ int32_t StmtInterpreter::run(const StatementNode* root) {
     go.clear();
     auto it = functions_.find("main");
     if (it != functions_.end()) {
-        std::unordered_map<std::string, int32_t> frame;
-        execStmt(it->second->getBody(), &frame, ret, returned, brk, cont, go);
+        StackFrame frame;
+        frame.functionName = "main";
+        pushFrame(&frame);
+        execStmt(it->second->getBody(), &frame.locals, ret, returned, brk, cont, go);
+        popFrame();
     }
     return ret;
 }

@@ -29,8 +29,30 @@ void Lexer::initializeKeywords() {
     keywords["sizeof"] = TokenType::Keyword;
     keywords["sqrt"] = TokenType::Keyword;
     keywords["abs"] = TokenType::Keyword;
+    keywords["sin"] = TokenType::Keyword;
+    keywords["cos"] = TokenType::Keyword;
+    keywords["tan"] = TokenType::Keyword;
+    keywords["asin"] = TokenType::Keyword;
+    keywords["acos"] = TokenType::Keyword;
+    keywords["atan"] = TokenType::Keyword;
+    keywords["atan2"] = TokenType::Keyword;
+    keywords["cbrt"] = TokenType::Keyword;
+    keywords["pow"] = TokenType::Keyword;
+    keywords["exp"] = TokenType::Keyword;
+    keywords["log"] = TokenType::Keyword;
+    keywords["ln"] = TokenType::Keyword;
+    keywords["log10"] = TokenType::Keyword;
+    keywords["log2"] = TokenType::Keyword;
+    keywords["log_ab"] = TokenType::Keyword;
+    keywords["ceil"] = TokenType::Keyword;
+    keywords["fmod"] = TokenType::Keyword;
+    keywords["and"] = TokenType::Keyword;
+    keywords["or"] = TokenType::Keyword;
+    keywords["not"] = TokenType::Keyword;
     keywords["PI"] = TokenType::Keyword;
     keywords["E"] = TokenType::Keyword;
+    keywords["pi"] = TokenType::Keyword;
+    keywords["e"] = TokenType::Keyword;
     keywords["var"]    = TokenType::Keyword;
     keywords["static"] = TokenType::Keyword;
     keywords["return"] = TokenType::Keyword;
@@ -69,7 +91,7 @@ Lexer::CharType Lexer::getCharType(char c) {
     if (isalpha(c) || c == '_') return CharType::Letter;
     if (isspace(c))  return CharType::Whitespace;
     if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' ||
-        c == '=' || c == '>' || c == '<' || c == '!' || c == '&' || c == '|' || c == '^' || c == '?')
+        c == '=' || c == '>' || c == '<' || c == '!' || c == '&' || c == '|' || c == '^' || c == '?' || c == '~')
         return CharType::Operator_;
     if (c == '(' || c == ')') return CharType::Paren;
     if (c == '[' || c == ']') return CharType::Other;

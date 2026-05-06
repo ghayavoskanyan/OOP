@@ -8,6 +8,13 @@ It parses source files, builds AST/IR, can run programs through a logical VM/int
 - **Variables**: global, local, static declarations (`int`-only model).
 - **Functions**: `int`/`void`, parameters, calls, return statements, recursion.
 - **Control flow**: `if/else`, `while`, `for`, `do-while`, `switch/case/default`, `break`, `continue`, `goto`, labels.
+- **Operators**:
+  - Arithmetic: `+ - * / % // %/ **`
+  - Bitwise: `& | ^ << >> ~`
+  - Logical: `&& || !` and keyword forms `and or not`
+  - Comparison: `== != < > <= >=`
+  - Assignment: `= += -= *= /= %= ^=`
+  - Ternary: `cond ? a : b`
 - **Types**:
   - `int` (main runtime type)
   - `enum` constants
@@ -15,11 +22,18 @@ It parses source files, builds AST/IR, can run programs through a logical VM/int
   - `union` field overlay behavior
   - `class` field parsing with `public/private` access sections
 - **Casts**: `(int)expr` and `static_cast<int>(expr)`.
+- **Math functions**: `sin cos tan asin acos atan atan2 sqrt cbrt pow exp log ln log10 log2 log_ab ceil fmod` (+ `abs`, `sqrt`).
+- **Constants**: `PI/E` and lowercase `pi/e` aliases.
 - **Toolchain modules**: lexer, parser, AST, IR emission, IR file writer, IR-to-RISC-V translator, VM monitor/CPU, linker entrypoint.
+- **Interpreter call stack**: function calls are tracked by linked-list stack frames.
+- **Debugger hooks**:
+  - `OOP_INTERP_DEBUG=1` shows interpreter function enter/exit + call stack.
+  - `OOP_VM_DEBUG=1` enables VM monitor CPU trace.
 
 ## Main Folders
 
 - `main/Compiler` - compiler, parser, VM, linker, executable.
+- `main/Compiler/VM` - VM-focused folder shim (`VM.h`, `VM.cpp`).
 - `tests` - automated language tests (`test_*.txt`) and test runner script.
 - `tests/multifile` - extra multi-file style examples.
 

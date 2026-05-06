@@ -18,6 +18,11 @@ static std::unique_ptr<ASTNode> parseLogicalAnd(Lexer& lexer, SymbolTable& sym, 
 static std::unique_ptr<ASTNode> parseLogicalOr(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
 static std::unique_ptr<ASTNode> parseConditional(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
 static std::unique_ptr<ASTNode> parseAssignment(Lexer& lexer, SymbolTable& sym, TypeRegistry& types);
+static bool isBuiltinMathName(const std::string& n) {
+    return n == "sqrt" || n == "abs" || n == "sin" || n == "cos" || n == "tan" || n == "asin" || n == "acos" ||
+           n == "atan" || n == "atan2" || n == "cbrt" || n == "pow" || n == "exp" || n == "log" || n == "ln" ||
+           n == "log10" || n == "log2" || n == "log_ab" || n == "ceil" || n == "fmod";
+}
 
 static std::unique_ptr<ASTNode> parsePrimary(Lexer& lexer, SymbolTable& sym, TypeRegistry& types) {
     Token t = lexer.getNextToken();
@@ -52,10 +57,10 @@ static std::unique_ptr<ASTNode> parsePrimary(Lexer& lexer, SymbolTable& sym, Typ
     if (t.type == TokenType::Keyword) {
         if (t.value == "true") return std::make_unique<NumberNode>(1);
         if (t.value == "false" || t.value == "none") return std::make_unique<NumberNode>(0);
-        if (t.value == "PI") return std::make_unique<NumberNode>(3);
-        if (t.value == "E") return std::make_unique<NumberNode>(2);
+        if (t.value == "PI" || t.value == "pi") return std::make_unique<NumberNode>(3);
+        if (t.value == "E" || t.value == "e") return std::make_unique<NumberNode>(2);
         if (t.value == "endl") return std::make_unique<NumberNode>(10);
-        if (t.value == "sqrt" || t.value == "abs") {
+        if (isBuiltinMathName(t.value)) {
             Token la = lexer.getNextToken();
             if (la.type != TokenType::OpenParen) throw std::runtime_error("Expected '(' after builtin name");
             std::vector<std::unique_ptr<ASTNode>> args;
@@ -161,6 +166,18 @@ static std::unique_ptr<ASTNode> parseUnary(Lexer& lexer, SymbolTable& sym, TypeR
         auto inner = parseUnary(lexer, sym, types);
         return parsePostfix(lexer, sym, types, std::make_unique<UnaryOpNode>('-', std::move(inner)));
     }
+    if (t.type == TokenType::Operator && t.value == "~") {
+        auto inner = parseUnary(lexer, sym, types);
+        return parsePostfix(lexer, sym, types, std::make_unique<UnaryOpNode>('~', std::move(inner)));
+    }
+    if (t.type == TokenType::Operator && t.value == "!") {
+        auto inner = parseUnary(lexer, sym, types);
+        return parsePostfix(lexer, sym, types, std::make_unique<UnaryOpNode>('!', std::move(inner)));
+    }
+    if (t.type == TokenType::Keyword && t.value == "not") {
+        auto inner = parseUnary(lexer, sym, types);
+        return parsePostfix(lexer, sym, types, std::make_unique<UnaryOpNode>('!', std::move(inner)));
+    }
     if (t.type == TokenType::Operator && t.value == "+") {
         return parseUnary(lexer, sym, types);
     }
@@ -184,11 +201,15 @@ static std::unique_ptr<ASTNode> parseMultiplicative(Lexer& lexer, SymbolTable& s
     auto left = parseUnary(lexer, sym, types);
     while (true) {
         Token op = lexer.getNextToken();
-        if (op.type != TokenType::Operator || (op.value != "*" && op.value != "/" && op.value != "%")) {
+        if (op.type != TokenType::Operator ||
+            (op.value != "*" && op.value != "/" && op.value != "%" && op.value != "//" && op.value != "%/" && op.value != "**")) {
             lexer.pushBack(op);
             break;
         }
         char c = op.value[0];
+        if (op.value == "//") c = 'Q';
+        if (op.value == "%/") c = '%';
+        if (op.value == "**") c = 'P';
         auto right = parseUnary(lexer, sym, types);
         left = std::make_unique<BinaryOpNode>(c, std::move(left), std::move(right));
     }
@@ -297,7 +318,7 @@ static std::unique_ptr<ASTNode> parseLogicalAnd(Lexer& lexer, SymbolTable& sym, 
     auto left = parseBitwiseOr(lexer, sym, types);
     while (true) {
         Token op = lexer.getNextToken();
-        if (op.type != TokenType::Operator || op.value != "&&") {
+        if (!((op.type == TokenType::Operator && op.value == "&&") || (op.type == TokenType::Keyword && op.value == "and"))) {
             lexer.pushBack(op);
             break;
         }
@@ -311,7 +332,7 @@ static std::unique_ptr<ASTNode> parseLogicalOr(Lexer& lexer, SymbolTable& sym, T
     auto left = parseLogicalAnd(lexer, sym, types);
     while (true) {
         Token op = lexer.getNextToken();
-        if (op.type != TokenType::Operator || op.value != "||") {
+        if (!((op.type == TokenType::Operator && op.value == "||") || (op.type == TokenType::Keyword && op.value == "or"))) {
             lexer.pushBack(op);
             break;
         }
