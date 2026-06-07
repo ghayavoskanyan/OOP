@@ -15,6 +15,15 @@ public:
     uint32_t getPc() const { return pc_; }
     int32_t getReg(unsigned r) const;
     void setReg(unsigned r, int32_t v);
+    int32_t getCallDepth() const { return callDepth_; }
+
+    uint32_t peekInsn() const;
+    int32_t readMemWord(uint32_t addr) const;
+    const std::vector<uint8_t>& memory() const { return mem_; }
+
+    static bool isCallInsn(uint32_t insn);
+    static bool isReturnInsn(uint32_t insn);
+    static std::string disassemble(uint32_t insn, uint32_t pc);
 
     CpuStatus step();
     void runUntilHalt(size_t maxSteps = 100000000);
@@ -32,8 +41,10 @@ private:
     std::string lastError_;
     bool debugTrace_{false};
     uint64_t cycleCount_{0};
+    int32_t callDepth_{0};
 
     uint32_t loadWord(uint32_t addr) const;
     void storeWord(uint32_t addr, uint32_t val);
     void illegal(uint32_t insn);
+    void updateCallDepth(uint32_t insn);
 };

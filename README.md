@@ -26,6 +26,10 @@ It parses source files, builds AST/IR, can run programs through a logical VM/int
 - **Constants**: `PI/E` and lowercase `pi/e` aliases.
 - **Toolchain modules**: lexer, parser, AST, IR emission, IR file writer, IR-to-RISC-V translator, VM monitor/CPU, linker entrypoint.
 - **Interpreter call stack**: function calls are tracked by linked-list stack frames.
+- **Interactive RISC-V debugger** (`--debug <file.exe>`):
+  - Step into (`step` / `si` / Enter), step over (`over` / `so`), step out (`out` / `su`), continue (`go` / `c`)
+  - Breakpoints: `br.add <addr>`, `br.rem <addr>`, `br` (list)
+  - Inspect state: `r<n>`, `m<addr>`, disassembly at PC, call depth, non-zero registers
 - **Debugger hooks**:
   - `OOP_INTERP_DEBUG=1` shows interpreter function enter/exit + call stack.
   - `OOP_VM_DEBUG=1` enables VM monitor CPU trace.
@@ -64,7 +68,26 @@ From `main/Compiler`:
 .\calculator.exe --help
 .\calculator.exe --emit-ir <input.txt> <out.ir>
 .\calculator.exe --riscv-exe <input.txt> <out.exe>
+.\calculator.exe --debug <out.exe>
 .\calculator.exe --link <obj1> <obj2> -o <out.exe>
+```
+
+### Debugger example
+
+```powershell
+.\calculator.exe --riscv-exe ..\..\tests\test_01_global_int.txt prog.exe
+.\calculator.exe --debug prog.exe
+```
+
+Inside the debugger:
+
+```
+(dbg) br.add 10
+(dbg) step
+(dbg) r5
+(dbg) over
+(dbg) c
+(dbg) q
 ```
 
 ## Current Limitations

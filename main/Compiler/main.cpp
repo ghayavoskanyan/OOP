@@ -9,6 +9,7 @@
 #include "VM.h"
 #include "Linker.h"
 #include "TypeRegistry.h"
+#include "Debugger.h"
 
 static void printHelp() {
     std::cout << "\n";
@@ -16,6 +17,7 @@ static void printHelp() {
     std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
     std::cout << "  calculator.exe <file.txt>              Run source (logical VM)\n";
     std::cout << "  calculator.exe --riscv-exe <in> <out>  Compile to .exe, run RISC-V VM\n";
+    std::cout << "  calculator.exe --debug <file.exe>       Interactive RISC-V debugger\n";
     std::cout << "  calculator.exe --emit-ir <in> <out.ir> Write logical IR file\n";
     std::cout << "  calculator.exe --link <o1> <o2> ... -o <out.exe>  Link object/exe stubs\n";
     std::cout << "  Interactive: + - * /, comparisons, if/else, while, for, print(expr)\n";
@@ -29,6 +31,16 @@ int main(int argc, char* argv[]) {
 
     if (argc >= 2) {
         std::string a1 = argv[1];
+        if (a1 == "--debug" && argc >= 3) {
+            Debugger dbg;
+            std::string err;
+            if (!dbg.loadExe(argv[2], err)) {
+                std::cerr << err << "\n";
+                return 1;
+            }
+            dbg.runLoop();
+            return 0;
+        }
         if (a1 == "--riscv-exe" && argc >= 4) {
             std::string err;
             if (!manager.compileFileToExe(argv[2], argv[3])) {

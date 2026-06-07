@@ -1,5 +1,7 @@
 #include "RiscvCpu.h"
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 
 RiscvCpu::RiscvCpu(std::vector<uint8_t> memory) : mem_(std::move(memory)) {
     if (mem_.size() < kMemSize) mem_.resize(kMemSize, 0);
@@ -20,6 +22,127 @@ int32_t RiscvCpu::getReg(unsigned r) const {
 void RiscvCpu::setReg(unsigned r, int32_t v) {
     if (r == 0 || r >= 32) return;
     x_[r] = v;
+}
+
+uint32_t RiscvCpu::peekInsn() const {
+    return loadWord(pc_);
+}
+
+int32_t RiscvCpu::readMemWord(uint32_t addr) const {
+    return (int32_t)loadWord(addr);
+}
+
+bool RiscvCpu::isCallInsn(uint32_t insn) {
+    uint32_t opcode = insn & 0x7F;
+    uint32_t rd = (insn >> 7) & 0x1F;
+    uint32_t funct3 = (insn >> 12) & 7;
+    if (rd == 0) return false;
+    if (opcode == 0x6F) return true;
+    if (opcode == 0x67 && funct3 == 0) return true;
+    return false;
+}
+
+bool RiscvCpu::isReturnInsn(uint32_t insn) {
+    uint32_t opcode = insn & 0x7F;
+    uint32_t rd = (insn >> 7) & 0x1F;
+    uint32_t funct3 = (insn >> 12) & 7;
+    return opcode == 0x67 && rd == 0 && funct3 == 0;
+}
+
+std::string RiscvCpu::disassemble(uint32_t insn, uint32_t pc) {
+    auto regName = [](uint32_t r) {
+        static const char* names[] = {"zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
+                                      "s0", "s1", "a0", "a1", "a2", "a3", "a4", "a5",
+                                      "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7",
+                                      "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"};
+        return (r < 32) ? names[r] : "?";
+    };
+
+    uint32_t opcode = insn & 0x7F;
+    uint32_t rd = (insn >> 7) & 0x1F;
+    uint32_t rs1 = (insn >> 15) & 0x1F;
+    uint32_t rs2 = (insn >> 20) & 0x1F;
+    uint32_t funct3 = (insn >> 12) & 7;
+    uint32_t funct7 = (insn >> 25) & 0x7F;
+
+    std::ostringstream os;
+    os << std::hex << std::setfill('0') << "0x" << std::setw(8) << insn << std::dec << "  ";
+
+    if (insn == 0x00000073u) { os << "ecall"; return os.str(); }
+    if (insn == 0x00100073u) { os << "ebreak"; return os.str(); }
+
+    switch (opcode) {
+        case 0x37: {
+            uint32_t imm = insn & 0xFFFFF000u;
+            os << "lui " << regName(rd) << ", 0x" << std::hex << (imm >> 12) << std::dec;
+            break;
+        }
+        case 0x17: {
+            uint32_t imm = insn & 0xFFFFF000u;
+            os << "auipc " << regName(rd) << ", 0x" << std::hex << (imm >> 12) << std::dec;
+            break;
+        }
+        case 0x6F: {
+            uint32_t i = insn;
+            uint32_t raw = (((i >> 31) & 1) << 20) | (((i >> 21) & 0x3FF) << 1) | (((i >> 20) & 1) << 11) | (((i >> 12) & 0xFF) << 12);
+            int32_t imm = (int32_t)((raw << 11) >> 11);
+            os << "jal " << regName(rd) << ", " << (pc + imm);
+            break;
+        }
+        case 0x67:
+            os << "jalr " << regName(rd) << ", " << (int32_t)(insn >> 20) << "(" << regName(rs1) << ")";
+            break;
+        case 0x13:
+            if (funct3 == 0) os << "addi " << regName(rd) << ", " << regName(rs1) << ", " << (int32_t)(insn >> 20);
+            else if (funct3 == 1) os << "slli " << regName(rd) << ", " << regName(rs1) << ", " << ((insn >> 20) & 0x1F);
+            else if (funct3 == 3) os << "sltiu " << regName(rd) << ", " << regName(rs1) << ", " << (int32_t)(insn >> 20);
+            else if (funct3 == 7) os << "andi " << regName(rd) << ", " << regName(rs1) << ", " << (int32_t)(insn >> 20);
+            else os << "addi?";
+            break;
+        case 0x03:
+            if (funct3 == 2) os << "lw " << regName(rd) << ", " << (int32_t)(insn >> 20) << "(" << regName(rs1) << ")";
+            else os << "load?";
+            break;
+        case 0x23:
+            if (funct3 == 2) os << "sw " << regName(rs2) << ", " << (int32_t)(((insn >> 25) << 5) | ((insn >> 7) & 0x1F)) << "(" << regName(rs1) << ")";
+            else os << "store?";
+            break;
+        case 0x33:
+            if (funct7 == 0x01) {
+                if (funct3 == 0) os << "mul " << regName(rd) << ", " << regName(rs1) << ", " << regName(rs2);
+                else if (funct3 == 4) os << "div " << regName(rd) << ", " << regName(rs1) << ", " << regName(rs2);
+                else if (funct3 == 6) os << "rem " << regName(rd) << ", " << regName(rs1) << ", " << regName(rs2);
+                else os << "mul?";
+            } else if (funct7 == 0) {
+                if (funct3 == 0) os << "add " << regName(rd) << ", " << regName(rs1) << ", " << regName(rs2);
+                else if (funct3 == 2) os << "slt " << regName(rd) << ", " << regName(rs1) << ", " << regName(rs2);
+                else if (funct3 == 6) os << "or " << regName(rd) << ", " << regName(rs1) << ", " << regName(rs2);
+                else if (funct3 == 7) os << "and " << regName(rd) << ", " << regName(rs1) << ", " << regName(rs2);
+                else os << "alu?";
+            } else if (funct7 == 0x20 && funct3 == 0) os << "sub " << regName(rd) << ", " << regName(rs1) << ", " << regName(rs2);
+            else os << "alu?";
+            break;
+        case 0x63: {
+            const char* br = (funct3 == 0) ? "beq" : (funct3 == 1) ? "bne" : (funct3 == 4) ? "blt" : (funct3 == 5) ? "bge" : "br?";
+            uint32_t bi = insn;
+            uint32_t braw = ((bi >> 31) << 12) | (((bi >> 7) & 1) << 11) | (((bi >> 25) & 0x3F) << 5) | (((bi >> 8) & 0xF) << 1);
+            int32_t imm = (int32_t)((braw << 19) >> 19);
+            os << br << " " << regName(rs1) << ", " << regName(rs2) << ", " << (pc + imm);
+            break;
+        }
+        default:
+            os << "unknown";
+            break;
+    }
+    return os.str();
+}
+
+void RiscvCpu::updateCallDepth(uint32_t insn) {
+    if (isCallInsn(insn)) {
+        callDepth_++;
+    } else if (isReturnInsn(insn) && callDepth_ > 0) {
+        callDepth_--;
+    }
 }
 
 uint32_t RiscvCpu::loadWord(uint32_t addr) const {
@@ -245,6 +368,7 @@ CpuStatus RiscvCpu::step() {
             return CpuStatus::Error;
     }
 
+    updateCallDepth(insn);
     x_[0] = 0;
     pc_ = nextPc;
     cycleCount_++;
